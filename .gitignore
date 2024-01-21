@@ -1,0 +1,12 @@
+# Ignore Python bytecode directories
+**/__pycache__/
+
+# Ignore JetBrains IDE settings folder
+.idea/
+
+# Ignore virtual environment directories
+venv/
+env/
+
+# Ignore specific environment variable configuration file
+/env_var_config.py
