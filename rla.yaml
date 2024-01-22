@@ -1,0 +1,104 @@
+# Radware Logging Agent Configuration File
+# -----------------------------------------
+
+# AWS Simple Queue Service (SQS) Settings
+# ---------------------------------------
+# Credentials and details for AWS SQS integration. These are essential for
+# retrieving logs from the specified SQS queue.
+
+sqs_access_key_id: ''
+sqs_secret_access_key: ''
+sqs_region: ''  # AWS region where the SQS queue is located
+sqs_name: ''   # Name of the SQS queue to poll for messages
+delete_on_failure: false # Set to true to remove messages from the queue even if processing fails
+num_worker_threads: 5    # Number of threads processing messages in parallel
+
+# Log Types Configuration
+# -----------------------
+# Specifies which types of logs to ingest from Cloud WAAP.
+# Set to true to enable ingestion of the respective log type.
+
+logs:
+  cloud_waap:
+    Access: true
+    WAF: true
+    Bot: true
+    DDoS: true
+    WebDDoS: true
+
+
+# General Settings
+# ----------------
+# General configuration settings including output format and directories for output and logs.
+
+output_format: ""  # Output format. Options: "ndjson", "json", "cef", "leef"
+output_directory: ''  # Directory to store processed files
+log_file: ''  # Name of the log file
+log_directory: ''  # Directory to store log files
+
+# Output Configurations
+# ---------------------
+# Defines how and where the processed data will be sent.
+# Configure based on the desired output method (TCP, UDP, HTTP(S), TLS).
+
+output:
+  type: ""  # Choose the output method. Options: "http", "https", "udp", "tcp", "tls"
+  destination: ""  # Destination address, can be a URL or an IP
+
+
+# Additional output method configurations - uncomment as needed
+
+# TLS Configuration (for secure TCP communication):
+#  tls:
+#    verify: true  # Enable or disable server certificate verification
+#    ca_cert: "/path/to/ca_cert.pem"  # Path to Certificate Authority (CA) bundle
+#    client_cert: "/path/to/client_cert.pem"  # Path to client certificate
+#    client_key: "/path/to/client_key.pem"  # Path to client key
+
+# HTTP/HTTPS Configuration (for web-based communication):
+#
+#  http:
+#    batch: false  # Enable or disable batch processing for HTTP
+#
+#  https:
+#    batch: false  # Enable or disable batch processing for HTTPS
+#
+
+# Format-Specific Configurations
+# ------------------------------
+# Customizations for each output format: CEF, JSON, ndJSON, LEEF.
+# Includes settings for delimiters, time formats, and syslog headers.
+#
+#  cef:
+#    delimiter: "\n"  # Delimiter used to separate CEF events
+#    time_format: "MM dd yyyy HH:mm:ss"  # Time format for CEF logs
+#    severity_format: 1 # choose between 1 = {"info", "low", "warning", "high", "critical"} 2 = {"Unknown", "Low", "Medium", "High", "Very-High"}  3 = { 1, 2 ,3 ,4, 5, 6, 7 ,8, 9, 10}
+#    syslog_header:
+#      generate_header: true  # Enable or disable the generation of syslog header
+#      host: "product"  # Source of the host field in syslog header. Options: "product", "application", "tenant"
+
+# JSON and ndJSON Configuration:
+#  json:
+#    time_format: "MM dd yyyy HH:mm:ss"  # Time format for JSON logs
+#
+#  ndjson:
+#    time_format: "MM dd yyyy HH:mm:ss"  # Time format for newline-delimited JSON logs
+
+# LEEF Configuration:
+#  leef:
+#    delimiter: "\n"  # Delimiter used to separate LEEF events
+#    time_format: "MM dd yyyy HH:mm:ss"  # Time format for LEEF logs
+#    syslog_header:
+#      generate_header: true  # Enable or disable the generation of syslog header
+#      host: "product"  # Source of the host field in syslog header
+
+# Advanced Logging Configuration
+# ------------------------------
+# Control over the verbosity of the Radware Logging Agent's logs.
+# Set the logging level as per operational requirements.
+
+logging_levels: "WARNING"  # Logging verbosity level. Options: "INFO", "WARNING", "DEBUG", "ERROR"
+
+
+
+

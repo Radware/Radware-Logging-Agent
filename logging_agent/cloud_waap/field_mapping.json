@@ -1,0 +1,238 @@
+{
+  "cloud_waap": {
+    "Access": {
+      "cef": {
+        "prefix": "rdwrCld",
+        "header": {
+          "vendor": "Radware",
+          "product": "Cloud WAAP",
+          "version": "1.0",
+          "log_type": "Access",
+          "title": "Cloud WAAP Access Log",
+          "severity": "Info"
+        },
+        "static_mapping": {
+          "time": "rt",
+          "action": "act",
+          "host": "dhost",
+          "source_ip": "src",
+          "destination_ip": "dst",
+          "source_port": "spt",
+          "destination_port": "dpt",
+          "protocol": "app",
+          "request": "request",
+          "uri": "uri",
+          "http_method": "method",
+          "http_bytes_in": "in",
+          "http_bytes_out": "out",
+          "user_agent": "requestClientApplication",
+          "referrer": "requestContext",
+          "cookie": "requestCookies"
+        }
+      },
+      "leef": {
+        "prefix": "rdwrCld",
+        "header": {
+          "vendor": "Radware",
+          "product": "Cloud WAAP",
+          "version": "1.0",
+          "log_type": "Access"
+        },
+        "static_mapping": {
+          "time": "devTime",
+          "action": "action",
+          "host": "dhost",
+          "source_ip": "src",
+          "destination_ip": "dst",
+          "source_port": "srcPort",
+          "destination_port": "dstPort",
+          "protocol": "proto",
+          "request": "url",
+          "uri": "uri",
+          "http_method": "method",
+          "http_bytes_in": "bytesIn",
+          "http_bytes_out": "bytesOut",
+          "user_agent": "userAgent",
+          "referrer": "referrer",
+          "cookie": "cookie",
+          "response_code": "responseCode"
+        }
+      }
+    },
+    "WAF": {
+      "cef": {
+      "prefix": "rdwrCld",
+        "header": {
+          "vendor": "Radware",
+          "product": "Cloud WAAP",
+          "version": "1.0",
+          "log_type": "WAF",
+          "title": "Cloud WAAP WAF Log",
+          "severity": "fromlog"
+      },
+      "static_mapping": {
+          "time": "rt",
+          "action": "act",
+          "host": "dhost",
+          "source_ip": "src",
+          "destination_ip": "dst",
+          "source_port": "spt",
+          "destination_port": "dpt",
+          "protocol": "app",
+          "http_method": "requestMethod",
+          "request": "request",
+          "uri": "uri",
+          "reason": "reason",
+          "referer": "requestContext",
+          "cookies": "requestCookies",
+          "user_agent": "requestClientApplication"
+       }
+      },
+      "leef": {
+      "prefix": "rdwrCld",
+        "header": {
+          "vendor": "Radware",
+          "product": "Cloud WAAP",
+          "version": "1.0",
+          "log_type": "WAF"
+      },
+      "static_mapping": {
+          "time": "eventTime",
+          "action": "action",
+          "host": "dhost",
+          "source_ip": "src",
+          "destination_ip": "dst",
+          "source_port": "srcPort",
+          "destination_port": "dstPort",
+          "protocol": "proto",
+          "http_method": "method",
+          "request": "request",
+          "reason": "reason",
+          "referer": "referer",
+          "cookies": "cookie",
+          "user_agent": "userAgent",
+          "severity": "sev"
+       }
+      }
+    },
+    "Bot": {
+      "cef": {
+        "prefix": "rdwrCld",
+        "header": {
+          "vendor": "Radware",
+          "product": "Cloud WAAP",
+          "version": "1.0",
+          "log_type": "Bot",
+          "title": "Cloud WAAP Bot Log",
+          "severity": "Info"
+        },
+        "static_mapping": {
+          "time": "rt",
+          "action": "act",
+          "host": "dhost",
+          "uri": "uri",
+          "request": "request",
+          "source_ip": "src",
+          "reason": "reason",
+          "referrer": "requestContext",
+          "user_agent": "requestClientApplication"
+        }
+      },
+      "leef": {
+        "prefix": "rdwrCld",
+        "header": {
+          "vendor": "Radware",
+          "product": "Cloud WAAP",
+          "version": "1.0",
+          "log_type": "Bot"
+        },
+        "static_mapping": {
+          "time": "eventTime",
+          "action": "action",
+          "host": "dhost",
+          "uri": "uri",
+          "request": "request",
+          "source_ip": "src",
+          "reason": "reason",
+          "referrer": "referer",
+          "user_agent": "userAgent"
+        }
+      }
+    },
+    "DDoS": {
+      "cef": {
+      "prefix": "rdwrCld",
+      "header": {
+        "vendor": "Radware",
+        "product": "CloudWAAP",
+        "version": "1.0",
+        "log_type": "DDoS",
+        "title": "Cloud WAAP DDoS Log",
+        "severity": "Info"
+      },
+      "static_mapping": {
+        "time": "rt",
+        "action": "act",
+        "source_ip": "src",
+        "destination_ip": "dst",
+        "source_port": "spt",
+        "destination_port": "dpt",
+        "protocol": "app",
+        "reason": "reason"
+      }
+    },
+      "leef": {
+      "prefix": "rdwrCld",
+      "header": {
+        "vendor": "Radware",
+        "product": "Cloud WAAP",
+        "version": "1.0",
+        "log_type": "DDoS"
+      },
+      "static_mapping": {
+        "time": "eventTime",
+        "action": "action",
+        "source_ip": "src",
+        "destination_ip": "dst",
+        "source_port": "srcPort",
+        "destination_port": "dstPort",
+        "protocol": "proto",
+        "reason":"reason"
+      }
+    }
+    },
+    "WebDDoS": {
+      "cef": {
+        "header": {
+          "vendor": "Radware",
+          "product": "Cloud WAAP",
+          "version": "1.0",
+          "log_type": "WebDDoS",
+          "title": "Cloud WAAP WebDDoS log",
+          "severity": "Critical"
+        },
+        "static_mapping": {
+          "action": "act",
+          "host": "dhost",
+          "currentTimestamp": "rt",
+          "startTime": "start",
+          "endTime": "end"
+        }
+      },
+      "leef": {
+      "header": {
+        "vendor": "Radware",
+        "product": "Cloud WAAP",
+        "version": "1.0",
+        "log_type": "WebDDoS"
+      },
+        "static_mapping": {
+          "action": "action",
+          "host": "dhost",
+          "currentTimestamp": "eventTime",
+          "severity": "sev"
+        }
+      }
+    }
+  }
+}
