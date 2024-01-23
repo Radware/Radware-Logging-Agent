@@ -9,7 +9,7 @@
 sqs_access_key_id: ''
 sqs_secret_access_key: ''
 sqs_region: ''  # AWS region where the SQS queue is located
-sqs_name: ''   # Name of the SQS queue to poll for messages
+sqs_name: ''  # Name of the SQS queue to poll for messages
 delete_on_failure: false # Set to true to remove messages from the queue even if processing fails
 num_worker_threads: 5    # Number of threads processing messages in parallel
 
@@ -25,25 +25,25 @@ logs:
     Bot: true
     DDoS: true
     WebDDoS: true
+    CSP: true
 
 
 # General Settings
 # ----------------
 # General configuration settings including output format and directories for output and logs.
 
-output_format: ""  # Output format. Options: "ndjson", "json", "cef", "leef"
-output_directory: ''  # Directory to store processed files
+output_format: 'cef'  # Output format. Options: "ndjson", "json", "cef", "leef"
 log_file: ''  # Name of the log file
-log_directory: ''  # Directory to store log files
-
+output_directory: ''  # Directory to store processed files
+log_directory: ''
 # Output Configurations
 # ---------------------
 # Defines how and where the processed data will be sent.
 # Configure based on the desired output method (TCP, UDP, HTTP(S), TLS).
 
 output:
-  type: ""  # Choose the output method. Options: "http", "https", "udp", "tcp", "tls"
-  destination: ""  # Destination address, can be a URL or an IP
+  type: "tcp"  # Choose the output method. Options: "http", "https", "udp", "tcp", "tls"
+  destination: ''  # Destination address, can be a URL or an IP
 
 
 # Additional output method configurations - uncomment as needed
@@ -97,7 +97,7 @@ output:
 # Control over the verbosity of the Radware Logging Agent's logs.
 # Set the logging level as per operational requirements.
 
-logging_levels: "WARNING"  # Logging verbosity level. Options: "INFO", "WARNING", "DEBUG", "ERROR"
+logging_levels: "INFO"  # Logging verbosity level. Options: "INFO", "WARNING", "DEBUG", "ERROR"
 
 
 

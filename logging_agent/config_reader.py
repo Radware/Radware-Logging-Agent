@@ -89,11 +89,14 @@ class Config:
             ]
 
 
+
             # Normalize paths after loading the config
             if 'output_directory' in self.config:
                 self.config['output_directory'] = str(self.normalize_path(self.config['output_directory']))
             if 'log_directory' in self.config:
                 self.config['log_directory'] = str(self.normalize_path(self.config['log_directory']))
+
+
 
             tls_config = self.config.get('output', {}).get('tls', {})
             if tls_config.get('verify', False):

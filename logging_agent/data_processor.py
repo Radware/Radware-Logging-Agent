@@ -32,7 +32,7 @@ def process_data(input_fields, product, field_mappings, config):
     output_directory = config.get('output_directory', '/tmp')
     output_format = config.get('output_format', '').lower()
     format_options = config.get('output', {}).get(output_format, {})
-    delimiter = format_options.get('delimiter', r'\n')
+    delimiter = format_options.get('delimiter', '\n')
     downloader = Downloader(config)
 
     # Batch mode configuration for HTTP/HTTPS
@@ -105,7 +105,7 @@ def process_data(input_fields, product, field_mappings, config):
         destination = config['output']['destination']
         port = config['output'][output_type].get('port', None)
         batch_mode = config['output'].get('batch', False)
-        delimiter = config['output'].get('delimiter', r'\n')
+        delimiter = config['output'].get('delimiter', '\n')
 
         destination_config = {
             'destination': destination,

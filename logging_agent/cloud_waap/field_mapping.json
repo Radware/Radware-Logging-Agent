@@ -83,8 +83,8 @@
           "request": "request",
           "uri": "uri",
           "reason": "reason",
-          "referer": "requestContext",
-          "cookies": "requestCookies",
+          "referrer": "requestContext",
+          "cookie": "requestCookies",
           "user_agent": "requestClientApplication"
        }
       },
@@ -108,8 +108,8 @@
           "http_method": "method",
           "request": "request",
           "reason": "reason",
-          "referer": "referer",
-          "cookies": "cookie",
+          "referrer": "referrer",
+          "cookie": "cookie",
           "user_agent": "userAgent",
           "severity": "sev"
        }
@@ -154,7 +154,7 @@
           "request": "request",
           "source_ip": "src",
           "reason": "reason",
-          "referrer": "referer",
+          "referrer": "referrer",
           "user_agent": "userAgent"
         }
       }
@@ -203,6 +203,7 @@
     },
     "WebDDoS": {
       "cef": {
+        "prefix": "rdwrCld",
         "header": {
           "vendor": "Radware",
           "product": "Cloud WAAP",
@@ -220,6 +221,7 @@
         }
       },
       "leef": {
+        "prefix": "rdwrCld",
       "header": {
         "vendor": "Radware",
         "product": "Cloud WAAP",

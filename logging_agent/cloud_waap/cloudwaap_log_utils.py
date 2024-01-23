@@ -48,7 +48,7 @@ class CloudWAAPProcessor:
         """
         logger.debug(f"Extracting tenant name from key: {key}")
         tenant_name = key.split("/")[-4]
-        logger.info(f"Extracted tenant name: {tenant_name}")
+        logger.debug(f"Extracted tenant name: {tenant_name}")
         return tenant_name
 
     @staticmethod
@@ -69,7 +69,7 @@ class CloudWAAPProcessor:
             match = re.search(pattern, key)
             if match:
                 application_name = match.group(1)
-                logger.info(f"Extracted application name: {application_name}")
+                logger.debug(f"Extracted application name: {application_name}")
                 return application_name
             logger.warning(f"No application name found in key: {key}")
             return None
@@ -83,7 +83,7 @@ class CloudWAAPProcessor:
         logger.debug("Parsing access request")
 
         # Known HTTP versions in lowercase for case-insensitive comparison
-        known_versions = ['http/1.0', 'http/1.1', 'http/2', 'http/2.0' 'http/3', 'http/0.9']
+        known_versions = ['http/1.0', 'http/1.1','http/1.2', 'http/2', 'http/2.0' 'http/3', 'http/0.9']
 
         # Initialize default values
         method, http_version, uri_only, uri = "-", "-", "-", request
@@ -104,13 +104,13 @@ class CloudWAAPProcessor:
 
                 else:
                     # No valid HTTP version found, entire request is the URI
-                    logger.warning(
+                    logger.debug(
                         f"No Valid HTTP version found, defaulting values: method={method}, full_url={request}, http_version={http_version}")
                     return http_method, request, http_version, uri_only
 
             else:
                 # No valid HTTP method found, entire request is the URI
-                logger.warning(
+                logger.debug(
                     f"No valid HTTP method found, defaulting values: method={method}, full_url={request}, http_version={http_version}")
                 return http_method, request, http_version, uri_only
 
@@ -167,7 +167,7 @@ class CloudWAAPProcessor:
         - host (str): The host to which the request was made.
 
         Returns:
-        - tuple: A tuple containing the method, full URL, HTTP version, cookies, user-agent, referer, and all headers as a string.
+        - tuple: A tuple containing the method, full URL, HTTP version, cookie, user-agent, referrer, and all headers as a string.
                  Returns an empty string for each element if not found or if the request doesn't match the expected format.
         """
         try:
@@ -184,29 +184,29 @@ class CloudWAAPProcessor:
             full_url = f"{protocol}://{host}{uri}"
 
             # Initialize header variables
-            cookies = ""
+            cookie = ""
             user_agent = ""
-            referer = ""
+            referrer = ""
             headers_str = ""
 
             # Compile all headers into a single string and extract specific headers
             for line in headers:
                 if line.startswith('Cookie:'):
-                    cookies = line.split('Cookie: ')[1]
+                    cookie = line.split('Cookie: ')[1]
                 elif line.startswith('User-Agent:'):
                     user_agent = line.split('User-Agent: ')[1]
                 elif line.startswith('Referer:'):
-                    referer = line.split('Referer: ')[1]
+                    referrer = line.split('Referer: ')[1]
 
                 headers_str += line + '; '
 
-            return method, full_url, http_version, cookies, user_agent, referer, headers_str.strip('; ')
+            return method, full_url, http_version, cookie, user_agent, referrer, headers_str.strip('; ')
         except Exception as e:
-            # logger.error(f"Error parsing WAF request: {e}")
+            logger.error(f"Error parsing WAF request: {e}")
             return "", "", "", "", "", "", ""
 
     @staticmethod
-    def enrich_waf_log(log, method, full_url, http_version, cookies, user_agent, referer, headers):
+    def enrich_waf_log(log, method, full_url, http_version, cookie, user_agent, referrer, headers):
         """
         Enrich the WAF log with parsed values and remove the original request field.
 
@@ -215,9 +215,9 @@ class CloudWAAPProcessor:
         - method (str): The HTTP method extracted from the request.
         - full_url (str): The full URL extracted from the request.
         - http_version (str): The HTTP version extracted from the request.
-        - cookies (str): The cookies extracted from the request.
+        - cookie (str): The cookies extracted from the request.
         - user_agent (str): The user-agent extracted from the request.
-        - referer (str): The referer extracted from the request.
+        - referrer (str): The referer extracted from the request.
         - headers (str): All headers compiled into a single string.
 
         Returns:
@@ -227,9 +227,9 @@ class CloudWAAPProcessor:
         log['http_method'] = method
         log['request'] = full_url
         log['http_version'] = http_version  # Adding HTTP version to the log
-        log['cookies'] = cookies
+        log['cookie'] = cookie
         log['user_agent'] = user_agent
-        log['referer'] = referer
+        log['referrer'] = referrer
         log['headers'] = headers
         del log['method']
 
@@ -318,7 +318,7 @@ class CloudWAAPProcessor:
                 return datetime.utcfromtimestamp(epoch_time_ms / 1000.0).strftime(output_format)
         except Exception as e:
             # Consider logging the error
-            # logger.error(f"Error transforming time: {e}")
+            logger.error(f"Error transforming time: {e}")
             return None
 
     @staticmethod
@@ -348,9 +348,10 @@ class CloudWAAPProcessor:
         """
         try:
             latest_realtime = log_data['latestRealTimeSignature']
+            pattern = latest_realtime['Pattern']
             flattened_parts = []
 
-            for entry in latest_realtime:
+            for entry in pattern:
                 try:
                     name = entry.get('Name', '')
                     values = entry.get('Values', [])

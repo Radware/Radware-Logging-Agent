@@ -3,7 +3,7 @@ from logging_agent.logging_config import get_logger
 import datetime
 
 # Create a logger for this module
-logger = get_logger('cloud_waao_json_to_leef')
+logger = get_logger('cloud_waap_json_to_leef')
 
 def map_severity_format(severity, severity_format):
     """

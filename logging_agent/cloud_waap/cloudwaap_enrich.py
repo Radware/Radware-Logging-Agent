@@ -5,6 +5,18 @@ from urllib.parse import urlparse
 def enrich_access_log(event, format_options, output_format):
     format_option = format_options.get('unify_fields', True)
     if format_option or output_format in ['cef', 'leef']:
+        cookie = event.get('cookie', '')
+        if cookie == "-":
+            del event['cookie']
+
+        referrer = event.get('referrer', '')
+        if referrer == "-":
+            del event['referrer']
+
+        destination_port = event.get('destinationPort', '')
+        if destination_port:
+            event['destination_port'] = destination_port
+            del event['destinationPort']
         output_time_format = format_options.get('time_format', "epoch_ms_str")  # Milliseconds since epoch as a string
         access_input_format = '%d/%b/%Y:%H:%M:%S %z'
         event['time'] = CloudWAAPProcessor.transform_time(
@@ -12,6 +24,9 @@ def enrich_access_log(event, format_options, output_format):
             input_format=access_input_format,
             output_format=output_time_format
         )
+        country_code = event.get('country_code', '')
+        if country_code or country_code == "--":
+            del event['country_code']
         if 'request' in event and 'protocol' in event and 'host' in event:
             method, full_url, http_version, uri = CloudWAAPProcessor.parse_access_request(
                 event['request'],
@@ -26,6 +41,7 @@ def enrich_access_log(event, format_options, output_format):
     return event
 
 def enrich_waf_log(event, format_options, output_format, application_name):
+
     format_option = format_options.get('unify_fields', True)
     if format_option or output_format in ['cef', 'leef']:
         event["time"] = event.pop("receivedTimeStamp")
@@ -39,6 +55,9 @@ def enrich_waf_log(event, format_options, output_format, application_name):
         if destination_ip:
             event['destination_ip'] = destination_ip
             del event['externalIp']
+
+        destinationip = event.get('destinationIp', '')
+        if destinationip:
             del event['destinationIp']
 
         source_port = event.get('sourcePort', '')
@@ -79,6 +98,7 @@ def enrich_waf_log(event, format_options, output_format, application_name):
     return event
 
 def enrich_bot_log(event, format_options, output_format):
+
     format_option = format_options.get('unify_fields', True)
     if format_option or output_format in ['cef', 'leef']:
         bot_output_format = format_options.get('time_format', "epoch_ms_str")

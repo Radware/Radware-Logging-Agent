@@ -72,7 +72,7 @@ def sanitize_cef_value(value):
 
     return value
 
-def get_cef_header(product, log_type, log, field_mappings, format_options, severity_format):
+def get_cef_header(product, log_type, log, field_mappings, severity_format):
     """Generate the CEF header based on the product, log type, and log content."""
     try:
         header_info = field_mappings.get(product, {}).get(log_type, {}).get("cef", {}).get("header", {})
@@ -132,6 +132,8 @@ def json_to_cef(log, log_type, product, field_mappings, format_options):
             severity = log.get('severity', "no_severity")
             if severity != "no_severity":
                 log['severity'] = map_severity_format(severity, severity_format)
+
+
         cef_header = get_cef_header(product, log_type, log, field_mappings, severity_format)
         cef_mappings = field_mappings.get(product, {}).get(log_type, {}).get("cef", {})
         static_mapping = cef_mappings.get("static_mapping", {})

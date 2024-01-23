@@ -53,6 +53,7 @@ class Transformer:
 
     @staticmethod
     def transform_content(data, output_format, log_type, field_mappings, product, batch_mode, format_options, **metadata):
+        product_field_mappings = field_mappings.get(product, {})
         transformed_logs = []
         logger.debug(f"Transforming data to {output_format}")
         requires_conversion = output_format in supported_features[product]["mapping"]["required_for"]
@@ -64,7 +65,7 @@ class Transformer:
                 if requires_conversion:
                     conversion_func = Transformer.get_conversion_function(output_format, product)
                     if conversion_func:
-                        transformed_log = conversion_func(enriched_event,log_type, product, field_mappings, format_options)
+                        transformed_log = conversion_func(enriched_event,log_type, product, product_field_mappings, format_options)
                     else:
                         logger.error(
                             f"No conversion function found for output format: {output_format} and product {product}")
