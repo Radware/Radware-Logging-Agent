@@ -9,7 +9,7 @@
 sqs_access_key_id: ''
 sqs_secret_access_key: ''
 sqs_region: ''  # AWS region where the SQS queue is located
-sqs_name: ''  # Name of the SQS queue to poll for messages
+sqs_name: ''   # Name of the SQS queue to poll for messages
 delete_on_failure: false # Set to true to remove messages from the queue even if processing fails
 num_worker_threads: 5    # Number of threads processing messages in parallel
 
@@ -32,10 +32,11 @@ logs:
 # ----------------
 # General configuration settings including output format and directories for output and logs.
 
-output_format: 'cef'  # Output format. Options: "ndjson", "json", "cef", "leef"
+output_format: 'json'  # Output format. Options: "ndjson", "json", "cef", "leef"
 log_file: ''  # Name of the log file
 output_directory: ''  # Directory to store processed files
 log_directory: ''
+
 # Output Configurations
 # ---------------------
 # Defines how and where the processed data will be sent.

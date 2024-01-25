@@ -2,7 +2,7 @@ from .cloudwaap_log_utils import CloudWAAPProcessor
 from urllib.parse import urlparse
 
 
-def enrich_access_log(event, format_options, output_format):
+def enrich_access_log(event, format_options, output_format, application_name):
     format_option = format_options.get('unify_fields', True)
     if format_option or output_format in ['cef', 'leef']:
         cookie = event.get('cookie', '')
@@ -97,7 +97,7 @@ def enrich_waf_log(event, format_options, output_format, application_name):
             event.update(enriched_log)
     return event
 
-def enrich_bot_log(event, format_options, output_format):
+def enrich_bot_log(event, format_options, output_format, application_name):
 
     format_option = format_options.get('unify_fields', True)
     if format_option or output_format in ['cef', 'leef']:
@@ -197,7 +197,7 @@ def enrich_ddos_log(event, format_options, output_format, application_name):
             event = CloudWAAPProcessor.process_enrichment_container(event)
     return event
 
-def enrich_webddos_log(event, format_options, output_format,application_name):
+def enrich_webddos_log(event, format_options, output_format, application_name):
     format_option = format_options.get('unify_fields', True)
     if format_option or output_format in ['cef', 'leef']:
         event["time"] = event.pop("currentTimestamp", "")

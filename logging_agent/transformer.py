@@ -11,48 +11,12 @@ logger = get_logger('transformer')
 
 class Transformer:
     @staticmethod
-    def load_and_transform(input_type, data_fields, output_format, field_mappings, product, batch_mode, format_options):
-
-        try:
-            metadata = {}
-            log_type = ''
-            data_source_type = ''
-
-            if input_type == "sqs":
-                key = data_fields.get('key', '')
-                file_path = data_fields.get('file_path', '')
-                log_type = data_fields.get('log_type', '')
-                data_source_type = "file"
-                data_info = file_path
-                logger.debug(f"Loading file for transformation: {file_path}")
-                with gzip.open(file_path, 'rt') as f:
-                    data = json.load(f)
+    def transform_content(data, data_fields, output_format, field_mappings, batch_mode, format_options):
+        log_type = data_fields.get('log_type','')
+        product = data_fields.get('product','')
+        metadata = data_fields.get('metadata', {})
 
 
-                # Extract metadata based on the product and log type
-
-                if product == "cloud_waap":
-                    metadata = CloudWAAPProcessor.extract_metadata(key, product, log_type)
-
-            # Transform the content with all the extracted information
-            transformed_content = Transformer.transform_content(
-                data,
-                output_format,
-                log_type,
-                field_mappings,
-                product,
-                batch_mode,
-                format_options,
-                **metadata
-            )
-            logger.info(f"Transformation completed for {data_source_type}: {data_info}")
-            return transformed_content
-        except Exception as e:
-            logger.error(f"Error loading or transforming {data_source_type}: {data_info}: {e}")
-            return None
-
-    @staticmethod
-    def transform_content(data, output_format, log_type, field_mappings, product, batch_mode, format_options, **metadata):
         product_field_mappings = field_mappings.get(product, {})
         transformed_logs = []
         logger.debug(f"Transforming data to {output_format}")
@@ -60,7 +24,7 @@ class Transformer:
         is_supported_format = output_format in supported_features[product]["supported_conversions"]
 
         for event in data:
-            enriched_event = Transformer.enrich_event(event, log_type, output_format, product, format_options, **metadata)
+            enriched_event = Transformer.enrich_event(event, log_type, output_format, product, format_options, metadata)
             if is_supported_format:
                 if requires_conversion:
                     conversion_func = Transformer.get_conversion_function(output_format, product)
@@ -81,11 +45,8 @@ class Transformer:
         return '\n'.join(transformed_logs) if batch_mode else transformed_logs
 
     @staticmethod
-    def enrich_event(event, log_type, output_format, product, format_options, **metadata):
+    def enrich_event(event, log_type, output_format, product, format_options, metadata):
         # Add log type for 'json' and 'ndjson' formats
-        # format_option = format_options.get('time_format', "epoch_ms_str")
-        #print(format_option)
-
         # Check the product type from metadata
 
         # Use product-specific enrichment based on log type
@@ -97,16 +58,15 @@ class Transformer:
             if log_type != "Access":
                 event['tenant_name'] = metadata.get('tenant_name', '')
             if log_type == "Access":
-                return cloud_waap_enrich.enrich_access_log(event, format_options, output_format)
+                return cloud_waap_enrich.enrich_access_log(event, format_options, output_format, application_name)
             elif log_type == "WAF":
                 return cloud_waap_enrich.enrich_waf_log(event, format_options, output_format, application_name)
             elif log_type == "Bot":
-                return cloud_waap_enrich.enrich_bot_log(event, format_options, output_format)
+                return cloud_waap_enrich.enrich_bot_log(event, format_options, output_format, application_name)
             elif log_type == "DDoS":
-
                 return cloud_waap_enrich.enrich_ddos_log(event, format_options, output_format, application_name)
             elif log_type == "WebDDoS":
-                return cloud_waap_enrich.enrich_webddos_log(event, format_options ,output_format, application_name)
+                return cloud_waap_enrich.enrich_webddos_log(event, format_options, output_format, application_name)
 
 
             logger.debug(f"Event enriched with log type: {log_type}, tenant name: {tenant_name}, application name: {application_name}")

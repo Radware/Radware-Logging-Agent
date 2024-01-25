@@ -10,4 +10,5 @@ env/
 tmp/
 
 # Ignore specific environment variable configuration file
-/env_var_config.py
+/clean_rla.yaml
+/dev_rla.yaml
