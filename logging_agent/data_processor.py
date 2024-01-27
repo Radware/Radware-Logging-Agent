@@ -22,7 +22,7 @@ class DataProcessor:
         self.config = config
         self.logger = get_logger('data_processor')
 
-    def process_data(self, input_fields, product, field_mappings):
+    def process_data(self, input_fields, product):
         """
         Processes the input data based on the source type and product.
 
@@ -49,7 +49,7 @@ class DataProcessor:
         log_type = self.identify_product_log_type(input_fields, input_type, product)
         data_fields = self.gather_data_fields(input_fields, input_type, log_type, product)
 
-        transformed_data = self.transform_data(data, data_fields, field_mappings)
+        transformed_data = self.transform_data(data, data_fields, product)
         if not transformed_data:
             self.logger.error("Failed to transform data")
             return False
@@ -109,7 +109,7 @@ class DataProcessor:
             }
         return data_fields
 
-    def transform_data(self, data, data_fields, field_mappings):
+    def transform_data(self, data, data_fields, product):
         """
         Transforms the data according to specified configurations and mappings.
 
@@ -125,11 +125,13 @@ class DataProcessor:
         batch_mode = self.config.get('output', {}).get('batch', False)
         format_options = self.config.get('output', {}).get(output_format, {})
 
-        transformed_data = Transformer.transform_content(
+        # Instantiate Transformer with the specific product and output format
+        transformer = Transformer(self.config, product, output_format)
+
+
+        transformed_data = transformer.transform_content(
             data=data,
             data_fields=data_fields,
-            output_format=output_format,
-            field_mappings=field_mappings,
             batch_mode=batch_mode,
             format_options=format_options
         )

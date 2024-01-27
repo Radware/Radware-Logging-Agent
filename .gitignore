@@ -12,3 +12,5 @@ tmp/
 # Ignore specific environment variable configuration file
 /clean_rla.yaml
 /dev_rla.yaml
+/future_rla.yaml
+/far_future_rla.yaml

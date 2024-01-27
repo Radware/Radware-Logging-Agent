@@ -63,7 +63,7 @@ def fetch_messages(sqs, config):
         logger.error(f"Error receiving messages: {e}")
         return None
 
-def worker(processing_messages, field_mappings, stop_agent, config):
+def worker(processing_messages, stop_agent, config):
     """
     Worker thread function to process messages from the queue.
     :param processing_messages: Queue from which to retrieve and process messages.
@@ -87,8 +87,7 @@ def worker(processing_messages, field_mappings, stop_agent, config):
                     'expected_size': message_details['size'],
                     'input_type': 'sqs'
                 },
-                product='cloud_waap',
-                field_mappings=field_mappings
+                product='cloud_waap'
             )
 
             # Handle message deletion based on processing success and config settings

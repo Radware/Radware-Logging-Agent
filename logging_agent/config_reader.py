@@ -88,7 +88,9 @@ class Config:
                 'sqs_region', 'sqs_name', 'output'
             ]
 
-
+            self.config['product'] = "cloud_waap"
+            self.config['products'] = ["cloud_waap"]
+            self.config['input_type'] = "sqs"
 
             # Normalize paths after loading the config
             if 'output_directory' in self.config:
