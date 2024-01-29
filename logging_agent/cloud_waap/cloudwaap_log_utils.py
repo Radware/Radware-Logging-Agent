@@ -1,6 +1,5 @@
 import re
 from urllib.parse import urlparse
-
 from logging_agent.logging_config import get_logger
 from datetime import datetime
 

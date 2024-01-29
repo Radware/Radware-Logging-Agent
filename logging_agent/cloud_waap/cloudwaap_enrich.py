@@ -2,8 +2,10 @@ from .cloudwaap_log_utils import CloudWAAPProcessor
 from urllib.parse import urlparse
 
 
-def enrich_access_log(event, format_options, output_format, application_name):
+def enrich_access_log(event, format_options, output_format, metadata, log_type):
     format_option = format_options.get('unify_fields', True)
+    if output_format in ['json', 'ndjson']:
+        event['log_type'] = log_type
     if format_option or output_format in ['cef', 'leef']:
         cookie = event.get('cookie', '')
         if cookie == "-":
@@ -40,10 +42,13 @@ def enrich_access_log(event, format_options, output_format, application_name):
             event['uri'] = uri
     return event
 
-def enrich_waf_log(event, format_options, output_format, application_name):
+def enrich_waf_log(event, format_options, output_format, metadata, log_type):
 
     format_option = format_options.get('unify_fields', True)
+    if output_format in ['json', 'ndjson']:
+        event['log_type'] = log_type
     if format_option or output_format in ['cef', 'leef']:
+        application_name = metadata.get('application_name', '')
         event["time"] = event.pop("receivedTimeStamp")
         event["application_name"] = event.pop("applicationName", application_name)
         source_ip = event.get('sourceIp', '')
@@ -97,9 +102,11 @@ def enrich_waf_log(event, format_options, output_format, application_name):
             event.update(enriched_log)
     return event
 
-def enrich_bot_log(event, format_options, output_format, application_name):
+def enrich_bot_log(event, format_options, output_format, metadata, log_type):
 
     format_option = format_options.get('unify_fields', True)
+    if output_format in ['json', 'ndjson']:
+        event['log_type'] = log_type
     if format_option or output_format in ['cef', 'leef']:
         bot_output_format = format_options.get('time_format', "epoch_ms_str")
         bot_input_format = 'epoch_ms'
@@ -155,9 +162,12 @@ def enrich_bot_log(event, format_options, output_format, application_name):
 
     return event
 
-def enrich_ddos_log(event, format_options, output_format, application_name):
+def enrich_ddos_log(event, format_options, output_format, metadata, log_type):
     format_option = format_options.get('unify_fields', True)
+    if output_format in ['json', 'ndjson']:
+        event['log_type'] = log_type
     if format_option or output_format in ['cef', 'leef']:
+        application_name = metadata.get('application_name', '')
         source_ip = event.get('sourceIP', '')
         if source_ip:
             event['source_ip'] = source_ip
@@ -197,9 +207,12 @@ def enrich_ddos_log(event, format_options, output_format, application_name):
             event = CloudWAAPProcessor.process_enrichment_container(event)
     return event
 
-def enrich_webddos_log(event, format_options, output_format, application_name):
+def enrich_webddos_log(event, format_options, output_format, metadata, log_type):
     format_option = format_options.get('unify_fields', True)
+    if output_format in ['json', 'ndjson']:
+        event['log_type'] = log_type
     if format_option or output_format in ['cef', 'leef']:
+        application_name = metadata.get('application_name', '')
         event["time"] = event.pop("currentTimestamp", "")
         event["application_name"] = event.pop("applicationName", application_name)
         output_time_format = format_options.get('time_format', "epoch_ms_str")
@@ -237,4 +250,48 @@ def enrich_webddos_log(event, format_options, output_format, application_name):
 
     return event
 
+
+
+def enrich_csp_log(event, format_options, output_format, metadata, log_type):
+    format_option = format_options.get('unify_fields', True)
+    if output_format in ['json', 'ndjson']:
+        event['log_type'] = log_type
+    if format_option or output_format in ['cef', 'leef']:
+        application_name = metadata.get('application_name', '')
+        event["time"] = event.pop("currentTimestamp", "")
+        event["application_name"] = event.pop("applicationName", application_name)
+        output_time_format = format_options.get('time_format', "epoch_ms_str")
+        webddos_input_format_time = "ISO8601_NS"
+        webddos_input_format_start = 'epoch_ms'
+        webddos_input_format_end = 'epoch_ms'
+        if 'time' in event:
+            event['time'] = CloudWAAPProcessor.transform_time(
+                event['time'],
+                input_format=webddos_input_format_time,
+                output_format=output_time_format
+            )
+        if 'startTime' in event:
+            event['startTime'] = CloudWAAPProcessor.transform_time(
+                event['startTime'],
+                input_format=webddos_input_format_start,
+                output_format=output_time_format
+            )
+        if 'endTime' in event:
+            event['endTime'] = CloudWAAPProcessor.transform_time(
+                event['endTime'],
+                input_format=webddos_input_format_end,
+                output_format=output_time_format
+            )
+        if 'enrichmentContainer' in event:
+            event = CloudWAAPProcessor.process_enrichment_container(event)
+        if output_format in ['cef', 'leef']:
+            # Flatten latest real time signature if it exists
+            if 'latestRealTimeSignature' in event:
+                event['latestRealTimeSignature'] = CloudWAAPProcessor.flatten_latest_realtime_signature(event)
+
+            # Flatten the rest of the nested fields
+            fields_to_flatten = ['detection', 'mitigation', 'rps']  # Add other fields as needed
+            event = CloudWAAPProcessor.update_log_with_flattened_fields(event, fields_to_flatten)
+
+    return event
 # Add more functions for other log types as needed

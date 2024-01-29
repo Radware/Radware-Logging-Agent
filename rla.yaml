@@ -1,105 +1,104 @@
 # Radware Logging Agent Configuration File
 # -----------------------------------------
-
-# AWS Simple Queue Service (SQS) Settings
-# ---------------------------------------
-# Credentials and details for AWS SQS integration. These are essential for
-# retrieving logs from the specified SQS queue.
-
-sqs_access_key_id: ''
-sqs_secret_access_key: ''
-sqs_region: ''  # AWS region where the SQS queue is located
-sqs_name: ''   # Name of the SQS queue to poll for messages
-delete_on_failure: false # Set to true to remove messages from the queue even if processing fails
-num_worker_threads: 5    # Number of threads processing messages in parallel
-
-# Log Types Configuration
-# -----------------------
-# Specifies which types of logs to ingest from Cloud WAAP.
-# Set to true to enable ingestion of the respective log type.
-
-logs:
-  cloud_waap:
-    Access: true
-    WAF: true
-    Bot: true
-    DDoS: true
-    WebDDoS: true
-    CSP: true
-
+# This file configures the Radware Logging Agent (RLA) for log collection, processing, and forwarding.
 
 # General Settings
 # ----------------
-# General configuration settings including output format and directories for output and logs.
+# These settings are applicable to the entire operation of the agent.
+general:
+  log_file: '' # Path to the log file where the agent's internal logs will be written.
+  output_directory: ''  # Directory to store temporary files during processing.
+  log_directory: ''  # Directory for storing log files.
+  logging_levels: "INFO"  # Logging level for the agent's internal logs. Options: "INFO", "WARNING", "DEBUG", "ERROR".
 
-output_format: 'json'  # Output format. Options: "ndjson", "json", "cef", "leef"
-log_file: ''  # Name of the log file
-output_directory: ''  # Directory to store processed files
-log_directory: ''
+# AWS Simple Queue Service (SQS) Settings
+# ---------------------------------------
+# Credentials and details for integration with AWS SQS, used for retrieving logs.
+aws_credentials:
+  access_key_id: ''  # AWS Access Key ID for authentication.
+  secret_access_key: ''  # AWS Secret Access Key for authentication.
+  region: ''  # AWS region where the SQS queue is located.
 
-# Output Configurations
-# ---------------------
-# Defines how and where the processed data will be sent.
-# Configure based on the desired output method (TCP, UDP, HTTP(S), TLS).
+# Agent Configuration
+# -------------------
+# Configuration of individual agents for log collection. Each agent can be configured for different sources and products.
+agents:
+  - name: ""  # Unique name of the agent.
+    type: "sqs"  # Type of log source. Current options: "sqs".
+    num_worker_threads: 5  # Number of worker threads for processing messages.
+    product: "cloud_waap"  # The product type associated with this agent. Current options: "cloud_waap".
+    sqs_settings:
+      queue_name: ''  # SQS queue name to poll for messages.
+      delete_on_failure: false  # Whether to delete messages from the queue if processing fails.
+    logs:
+      Access: true  # Enable or disable ingestion of 'Access' logs.
+      WAF: true  # Enable or disable ingestion of 'WAF' logs.
+      Bot: true  # Enable or disable ingestion of 'Bot' logs.
+      DDoS: true  # Enable or disable ingestion of 'DDoS' logs.
+      WebDDoS: true  # Enable or disable ingestion of 'WebDDoS' logs.
+      CSP: true  # Enable or disable ingestion of 'CSP' logs.
 
+# Output Configuration
+# --------------------
+# Configures how logs are outputted after processing.
 output:
-  type: "tcp"  # Choose the output method. Options: "http", "https", "udp", "tcp", "tls"
-  destination: ''  # Destination address, can be a URL or an IP
-
-
-# Additional output method configurations - uncomment as needed
-
-# TLS Configuration (for secure TCP communication):
-#  tls:
-#    verify: true  # Enable or disable server certificate verification
-#    ca_cert: "/path/to/ca_cert.pem"  # Path to Certificate Authority (CA) bundle
-#    client_cert: "/path/to/client_cert.pem"  # Path to client certificate
-#    client_key: "/path/to/client_key.pem"  # Path to client key
-
-# HTTP/HTTPS Configuration (for web-based communication):
-#
-#  http:
-#    batch: false  # Enable or disable batch processing for HTTP
-#
-#  https:
-#    batch: false  # Enable or disable batch processing for HTTPS
-#
+  output_format: ''  # The format of the output logs. Options: 'cef', 'json', 'ndjson', 'leef'.
+  type: ''  # The transport protocol for sending logs. Options: 'http', 'https', 'tcp', 'udp', 'tls'.
+  destination: ''  # Destination where logs are sent. Format varies based on 'type'.
 
 # Format-Specific Configurations
 # ------------------------------
 # Customizations for each output format: CEF, JSON, ndJSON, LEEF.
-# Includes settings for delimiters, time formats, and syslog headers.
 #
-#  cef:
-#    delimiter: "\n"  # Delimiter used to separate CEF events
-#    time_format: "MM dd yyyy HH:mm:ss"  # Time format for CEF logs
-#    severity_format: 1 # choose between 1 = {"info", "low", "warning", "high", "critical"} 2 = {"Unknown", "Low", "Medium", "High", "Very-High"}  3 = { 1, 2 ,3 ,4, 5, 6, 7 ,8, 9, 10}
-#    syslog_header:
-#      generate_header: true  # Enable or disable the generation of syslog header
-#      host: "product"  # Source of the host field in syslog header. Options: "product", "application", "tenant"
+# General Format Options:
+# - 'time_format': Defines the format for timestamps. Options:
+#   - 'epoch_ms_str': String representation of epoch time in milliseconds.
+#   - 'epoch_ms_int': Integer representation of epoch time in milliseconds.
+#   - 'MM dd yyyy HH:mm:ss': Custom formatted date-time string.
+#   - 'ISO8601': ISO 8601 formatted date-time string.
+# - 'severity_format' (only for CEF and LEEF): Defines the format for representing log severity levels. Options:
+#   - 1: Standard textual representations ("info", "low", "warning", "high", "critical").
+#   - 2: Descriptive textual representations ("Unknown", "Low", "Medium", "High", "Very-High").
+#   - 3: Numeric severity levels ranging from 1 to 10.
 
-# JSON and ndJSON Configuration:
-#  json:
-#    time_format: "MM dd yyyy HH:mm:ss"  # Time format for JSON logs
-#
-#  ndjson:
-#    time_format: "MM dd yyyy HH:mm:ss"  # Time format for newline-delimited JSON logs
+formats:
+  json:
+    time_format: ""  # Time format for JSON logs
+    unify_fields: true
+  # Uncomment below sections as needed for other formats
+  # ndjson:
+  #   time_format: "MM dd yyyy HH:mm:ss"  # Time format for newline-delimited JSON logs
+  #   unify_fields: true
+  # cef:
+  #   delimiter: "\n"  # Delimiter used to separate CEF events
+  #   time_format: "MM dd yyyy HH:mm:ss"  # Time format for CEF logs
+  #   unify_fields: true
+  #   severity_format: 1
+  #   syslog_header:
+  #     generate_header: true  # Enable or disable the generation of syslog header
+  #     host: "product"  # Source of the host field in syslog header
+  # leef:
+  #   delimiter: "\n"  # Delimiter used to separate LEEF events
+  #   time_format: "MM dd yyyy HH:mm:ss"  # Time format for LEEF logs
+  #   unify_fields: true
+  #   severity_format: 1
+  #   syslog_header:
+  #     generate_header: true  # Enable or disable the generation of syslog header
+  #     host: "product"  # Source of the host field in syslog header
 
-# LEEF Configuration:
-#  leef:
-#    delimiter: "\n"  # Delimiter used to separate LEEF events
-#    time_format: "MM dd yyyy HH:mm:ss"  # Time format for LEEF logs
-#    syslog_header:
-#      generate_header: true  # Enable or disable the generation of syslog header
-#      host: "product"  # Source of the host field in syslog header
+# TLS Configuration
+# -----------------
+# Settings for secure TCP communication using TLS.
+tls:
+  verify: false  # Whether to verify the server's SSL certificate.
+  ca_cert: "/path/to/ca_cert.pem"  # Path to the CA certificate file.
+  client_cert: "/path/to/client_cert.pem"  # Path to the client's SSL certificate.
+  client_key: "/path/to/client_key.pem"  # Path to the client's SSL key.
 
-# Advanced Logging Configuration
-# ------------------------------
-# Control over the verbosity of the Radware Logging Agent's logs.
-# Set the logging level as per operational requirements.
-
-logging_levels: "INFO"  # Logging verbosity level. Options: "INFO", "WARNING", "DEBUG", "ERROR"
-
-
-
-
+# HTTP/HTTPS Configuration
+# ------------------------
+# Settings specific to HTTP/HTTPS communication.
+http:
+  batch: false  # Whether to enable batch processing for HTTP.
+https:
+  batch: false  # Whether to enable batch processing for HTTPS.

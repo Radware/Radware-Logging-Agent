@@ -11,18 +11,28 @@ from .logging_config import get_logger
 logger = get_logger('transformer')
 
 class Transformer:
-    def __init__(self, config, product, output_format):
+
+    # Mapping for cloud_waap enrichment functions
+    cloud_waap_enrichment_functions = {
+        "Access": cloud_waap_enrich.enrich_access_log,
+        "WAF": cloud_waap_enrich.enrich_waf_log,
+        "Bot": cloud_waap_enrich.enrich_bot_log,
+        "DDoS": cloud_waap_enrich.enrich_ddos_log,
+        "WebDDoS": cloud_waap_enrich.enrich_webddos_log,
+        "CSP": cloud_waap_enrich.enrich_csp_log,
+    }
+    def __init__(self, config):
         self.logger = get_logger('Transformer')
         self.config = config  # Store the configuration in the instance
         # Retrieve the field mappings directly from the FieldMappings singleton
+        product = self.config.get('product')
         self.field_mappings = FieldMappings.get_mapping_for_product(product)
-        self.output_format = output_format
+        self.output_format = self.config['output']['output_format']
         self.product = product
 
     def transform_content(self, data, data_fields, batch_mode, format_options):
         log_type = data_fields.get('log_type', '')
         metadata = data_fields.get('metadata', {})
-        print(self.field_mappings)
 
         transformed_logs = []
         self.logger.debug(f"Transforming data to {self.output_format}")
@@ -42,6 +52,7 @@ class Transformer:
                         return None
                 else:
                     transformed_log = json.dumps(enriched_event)
+
                 transformed_logs.append(transformed_log)
             else:
                 self.logger.error(f"Unsupported output format: {self.output_format} for product {self.product}")
@@ -61,34 +72,24 @@ class Transformer:
         Returns:
             dict: The enriched event.
         """
+        enrichment_functions = getattr(self, f"{self.product}_enrichment_functions", {})
+
         # Add log type for specific formats
         if self.output_format in ["ndjson", "json"]:
             event['log_type'] = log_type
 
-        # Use product-specific enrichment based on log type
-        if self.product == "cloud_waap":
-            tenant_name = metadata.get('tenant_name', '')
-            application_name = metadata.get('application_name', '')
+        enrich_func = enrichment_functions.get(log_type)
+        if enrich_func:
+            enriched_event = enrich_func(event, format_options, self.output_format,
+                                         metadata,
+                                         log_type
+                                         )
+        else:
+            # Default to the original event if no specific processing is required
+            self.logger.debug(f"No specific enrichment for log type: {log_type} in product: {self.product}")
+            enriched_event = event
 
-            if log_type == "Access":
-                enriched_event = cloud_waap_enrich.enrich_access_log(event,format_options, self.output_format, application_name)
-            elif log_type == "WAF":
-                enriched_event = cloud_waap_enrich.enrich_waf_log(event,format_options, self.output_format, application_name)
-            elif log_type == "Bot":
-                enriched_event = cloud_waap_enrich.enrich_bot_log(event,format_options, self.output_format, application_name)
-            elif log_type == "DDoS":
-                enriched_event = cloud_waap_enrich.enrich_ddos_log(event,format_options, self.output_format, application_name)
-            elif log_type == "WebDDoS":
-                enriched_event = cloud_waap_enrich.enrich_webddos_log(event,format_options, self.output_format, application_name)
-            else:
-                # Handle other cases or unhandled log types
-                enriched_event = event
-
-            self.logger.debug(f"Event enriched with log type: {log_type}, tenant name: {tenant_name}, application name: {application_name}")
-            return enriched_event
-
-        # Default: return the event as is if no specific processing is required
-        return event
+        return enriched_event
 
     def get_conversion_function(self):
         """

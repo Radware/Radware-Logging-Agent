@@ -19,17 +19,13 @@ logging_levels = {
 log_level = logging_levels.get(config.get('logging_levels', 'INFO'), logging.INFO)
 
 # Fetch log directory and file from the configuration, or use defaults
-log_directory = config.get('log_directory', '/tmp/')
+log_directory = config.get('general', {}).get('log_directory', '/tmp')
 log_file = config.get('log_file', 'rcwla.log')
 log_path = os.path.join(log_directory, log_file)
 
 # Ensure the directory exists
 os.makedirs(log_directory, exist_ok=True)
 
-# # Set up the basic configuration for logging
-# logging.basicConfig(filename=log_path,
-#                     level=log_level,
-#                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 # Set up logging
 logger = logging.getLogger()

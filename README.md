@@ -1,4 +1,4 @@
-# Radware Logging Agent (RLA)
+# Radware Logging Agents (RLA)
 
 RLA is a log processing tool designed to streamline the integration of Radware products with Security Information and Event Management (SIEM) systems. In its first major release, RLA is focuses on robust support of Radware Cloud WAAP logs, utilizing the Cloud WAAP's capability to export security and access logs to an AWS S3 Bucket.
 
@@ -6,22 +6,21 @@ RLA is a log processing tool designed to streamline the integration of Radware p
 ## Features
 
 ### Log Ingestion
-- **Cloud WAAP Integration**: Ingests logs from Radware Cloud WAAP exported to AWS S3.
-- **Support for Multiple Log Types**: Handles various log types including Access, WAF, Bot, DDoS, and Web DDoS logs.
+- **Multi-Agent Architecture**: Supports multiple agents, each with distinct configurations for targeted log processing.
+- **Cloud WAAP Integration**: Efficiently ingests logs from Radware Cloud WAAP exported to AWS S3.
+- **Versatile Log Handling**: Capable of processing various log types including Access, WAF, Bot, DDoS, and Web DDoS.
 
 ### Log Processing and Conversion
-- **Format Conversion**: Converts logs to multiple formats such as JSON, ndJSON, CEF, and LEEF.
-- **Log Type Filtering**: Option to skip specific log types, allowing selective log ingestion.
+- **Dynamic Format Conversion**: Converts logs to multiple formats such as JSON, ndJSON, CEF, and LEEF, with customizable options.
+- **Selective Log Processing**: Provides the ability to filter and process specific log types, enhancing control over log ingestion.
 
 ### Log Enrichment
-- Provides various enrichments to logs for enhanced information and SIEM integration.
+- **Enhanced Information**: Adds valuable enrichments to logs, improving their utility and integration with SIEM systems.
 
-### Customization and Configuration
-- **Homogenization**: Optionally homogenizes log fields for consistency across different log types.
-- **Timestamp Format Customization**: Allows for the customization of timestamp formats in the output logs.
-- **Customizable Log Delimiter**: Supports setting custom delimiters for different output formats.
-- **Severity Format Customization**: Provides options to customize the format of severity levels in logs.
-
+### Customization and Flexibility
+- **Configurable Homogenization**: Optional normalization of log fields across different log types for consistency.
+- **Customizable Timestamp and Severity Formats**: Allows specific settings for timestamp and log severity formats in output logs.
+- **Adaptable Output Configurations**: Supports various output methods and customization for delimiters and other format-specific settings.
 
 ## Configuration
 
@@ -29,20 +28,30 @@ Configure RLA through the `rla.yaml` file, which includes settings for AWS SQS i
 
 ### Sample Configuration
 ```yaml
-sqs_access_key_id: 'your_access_key'
-sqs_secret_access_key: 'your_secret_key'
-sqs_region: 'your_region'
-sqs_name: 'your_queue_name'
-output_format: 'json'  # Supports 'json', 'ndjson', 'cef', 'leef'
-logs:
-  cloud_waap:
-    Access: true
-    WAF: true
-    Bot: true
-    DDoS: true
-    WebDDoS: true
+aws_credentials:
+  access_key_id: 'your_access_key'
+  secret_access_key: 'your_secret_key'
+  region: 'your_region'
+
+agents:
+  - name: "cloud_waap"
+    type: "sqs"
+    num_worker_threads: 5
+    product: "cloud_waap"
+    sqs_settings:
+      queue_name: 'your_sqs_queue_name'
+      delete_on_failure: false
+    logs:
+      Access: true
+      WAF: true
+      Bot: true
+      DDoS: true
+      WebDDoS: true
+      CSP: false
+
 output:
-  type: 'tcp'  # Options: 'http', 'https', 'udp', 'tcp', 'tls'
+  output_format: 'json'  # Supports 'json', 'ndjson', 'cef', 'leef'
+  type: 'tcp'
   destination: 'your_destination_address'
 ```
 

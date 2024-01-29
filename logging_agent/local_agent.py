@@ -1,9 +1,9 @@
 import threading
-import queue
-from .sqs_agent import poll_sqs_messages, worker
+from .sqs_agent import SQSAgent  # Assuming SQSAgent is the refactored class
 from .config_reader import Config
 from .logging_config import get_logger
 from .field_mappings import FieldMappings  # Import the FieldMappings singleton
+
 
 # Load configuration using the Config singleton
 config = Config().config
@@ -12,36 +12,54 @@ config = Config().config
 logger = get_logger('local_agent')
 
 
+def start_agents(agents_config):
+    """Starts multiple agents based on their configurations."""
+    agents = []
+    for agent_config in agents_config:
+        agent_type = agent_config.get('type')
+        if agent_type == 'sqs':
+            print(agent_config)
+            agent = SQSAgent(agent_config)
+        else:
+            # Handle other types or log an error
+            continue
+
+        agent_thread = threading.Thread(target=agent.start)
+        agent_thread.daemon = True
+        agent_thread.start()
+        agents.append((agent, agent_thread))
+
+    return agents
 
 
-def initialize_worker_threads(num_threads, processing_queue, stop_event, config):
-    for i in range(num_threads):
-        t = threading.Thread(target=worker, args=(processing_queue, stop_event, config))
-        t.daemon = True
-        t.start()
+def stop_agents(agents):
+    """Stops all running agents."""
+    for agent, agent_thread in agents:
+        agent.stop()  # Assuming each agent has a stop method
+        agent_thread.join()
+
 def start_local_agent():
     logger.debug("Starting local agent.")
-    products = config.get('products')
-    product = config.get('product')
-    # Load field mappings
-    output_format = config.get('output_format', 'json')
+
+    # Get the names of all agents from the configuration
+    agent_names = Config().get_all_agent_names()
+
+    # Load field mappings for all products
+    products = Config().get_all_products()
+    output_format = config['output'].get('output_format', 'json')
     FieldMappings.load_field_mappings(products, output_format)
 
-    num_worker_threads = config.get('num_worker_threads', 5)
-    logger.debug(f"Worker threads: {num_worker_threads}, Product: {product}")
-
-    processing_messages = queue.Queue()
-    stop_agent = threading.Event()
-
-    initialize_worker_threads(num_worker_threads, processing_messages, stop_agent, config)
+    # Load configurations for each agent and start them
+    agents_config = [Config().get_agent_config(agent_name) for agent_name in agent_names]
+    agents = start_agents(agents_config)
 
     try:
-        poll_sqs_messages(processing_messages, stop_agent, config)
+        # Keep the main thread running while agents are active
+        while any(agent_thread.is_alive() for _, agent_thread in agents):
+            threading.Event().wait(1)
     except KeyboardInterrupt:
-        stop_agent.set()
-        logger.info("Shutdown signal received. Exiting...")
-
-    processing_messages.join()
+        logger.info("Shutdown signal received. Stopping agents...")
+        stop_agents(agents)
 
 # Entry point for the script
 if __name__ == "__main__":

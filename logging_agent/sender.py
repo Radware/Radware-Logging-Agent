@@ -1,4 +1,6 @@
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 import json
 import socket
 import ssl
@@ -27,6 +29,7 @@ class Sender:
     def send_http(data, destination_config):
         """
         Send data to the specified HTTP destination.
+        Enhanced to include retry logic.
 
         :param data: The data to send. Could be a list of transformed events or a single event.
         :param destination_config: Configuration containing destination, output_format, and batch mode.
@@ -45,10 +48,17 @@ class Sender:
         if output_format == 'ndjson':
             headers['Content-Type'] = 'application/x-ndjson'
 
+        # Define retry strategy for HTTP/HTTPS requests
+        retries = Retry(total=3, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
+        adapter = HTTPAdapter(max_retries=retries)
+        session = requests.Session()
+        session.mount('http://', adapter)
+        session.mount('https://', adapter)
+
         if batch_mode:
             try:
                 batch_data = '\n'.join(data) if output_format == 'ndjson' else json.dumps(data)
-                response = requests.post(destination, data=batch_data, headers=headers)
+                response = session.post(destination, data=batch_data, headers=headers)
                 response.raise_for_status()  # Raise an error for bad status
                 logger.info(f"Batch data sent successfully to {destination}")
                 return True
@@ -58,7 +68,7 @@ class Sender:
         else:
             for event in data:
                 try:
-                    response = requests.post(destination, data=json.dumps(event), headers=headers)
+                    response = session.post(destination, data=json.dumps(event), headers=headers)
                     response.raise_for_status()  # Raise an error for bad status
                 except Exception as e:
                     logger.error(f"Failed to send event to {destination}: {e}")

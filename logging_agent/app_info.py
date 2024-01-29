@@ -6,6 +6,9 @@ supported_features = {
             "path" : "cloud_waap/field_mapping.json",
             "required_for": ['cef', 'leef']
         },
-        "supported_conversions": ['cef', 'leef', "json", "ndjson"]
+        "supported_conversions": ['cef', 'leef', "json", "ndjson"],
+        "supported_log_types": ['CSP', "Access", "WAF", "Bot", "DDoS", "WebDDoS"],
+        "supported_input_type": ['sqs']
+
     }
 }

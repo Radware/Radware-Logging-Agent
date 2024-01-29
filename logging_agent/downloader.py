@@ -19,9 +19,9 @@ class S3Downloader(Downloader):
         super().__init__(config)
         self.s3_client = boto3.client(
             's3',
-            aws_access_key_id=config.get('sqs_access_key_id'),
-            aws_secret_access_key=config.get('sqs_secret_access_key'),
-            region_name=config.get('sqs_region', 'us-east-1')
+            aws_access_key_id=config.get('access_key_id'),
+            aws_secret_access_key=config.get('secret_access_key'),
+            region_name=config.get('region', 'us-east-1')
         )
         logger.debug("AWS S3 client initialized for S3Downloader.")
 

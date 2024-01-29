@@ -32,7 +32,8 @@ class DataLoader:
         bucket = input_info.get('bucket', '')
         key = input_info.get('key', '')
         expected_size = input_info.get('expected_size', '')
-        download_path = os.path.join(self.config.get('output_directory', '/tmp'), os.path.basename(key))
+        output_directory = self.config.get('output_directory', '/tmp')
+        download_path = os.path.join(output_directory, os.path.basename(key))
 
         # Check if file already exists and decide whether to download
         download_required = True
@@ -50,7 +51,8 @@ class DataLoader:
 
         # Download the file from S3 if required
         if download_required:
-            downloader = S3Downloader(self.config)
+            s3_config = self.config.get('aws_credentials', {})  # Extract AWS specific configuration
+            downloader = S3Downloader(s3_config)
             if not downloader.download(bucket, key, download_path):
                 self.logger.error(f"Failed to download {key} from bucket {bucket}")
                 return None
