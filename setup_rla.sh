@@ -1,80 +1,40 @@
 #!/bin/bash
 
-# Check the Linux Distribution
-distro=$(awk -F= '/^NAME/{print $2}' /etc/os-release)
+echo "Radware Logging Agent Setup Instructions"
+echo "----------------------------------------"
 
-# Function to check Python version and provide installation/update instructions
+# Function to print instructions
+print_instructions() {
+    echo -e "\n$1"
+}
+
+# Check the Python Installation
 check_python() {
-    if command -v python3 &>/dev/null; then
-        PY_VER=$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:3])))')
-        if [[ $PY_VER < "3.8" ]]; then
-            echo "Python 3.8 or higher is required. Installed version is $PY_VER."
-            echo "Run the following command to update Python:"
-            if [[ $distro == *"Ubuntu"* ]]; then
-                echo "sudo apt-get update && sudo apt-get install python3.8"
-            elif [[ $distro == *"CentOS"* ]]; then
-                echo "sudo yum update && sudo yum install python3.8"
-            fi
-            exit 1
-        fi
-    else
-        echo "Python 3 is not installed. Run the following command to install Python 3.8:"
-        if [[ $distro == *"Ubuntu"* ]]; then
-            echo "sudo apt-get update && sudo apt-get install python3.8"
-        elif [[ $distro == *"CentOS"* ]]; then
-            echo "sudo yum update && sudo yum install python3.8"
-        fi
+    if ! command -v python3 &>/dev/null || [ "$(python3 -c 'import sys; print(sys.version_info >= (3, 8))')" != "True" ]; then
+        print_instructions "Python 3.8 or higher is required but not found. Please install or update Python."
         exit 1
     fi
 }
 
-
-# Function to check for pip3
+# Check for pip3
 check_pip3() {
     if ! command -v pip3 &>/dev/null; then
-        echo "pip3 is not installed. Run the following command to install it:"
-        if [[ $distro == *"Ubuntu"* ]]; then
-            echo "sudo apt-get install python3-pip"
-        elif [[ $distro == *"CentOS"* ]]; then
-            echo "sudo yum install python3-pip"
-        fi
-    else
-        echo "pip3 is installed."
-    fi
-}
-
-
-# Function to provide command for installing Python requirements
-install_requirements_cmd() {
-    echo "Run the following command to install the required Python packages:"
-    echo "pip3 install -r requirements.txt"
-}
-
-# Function to output directory setup commands
-output_directory_setup_cmds() {
-    echo "Make sure the following directories exist and have appropriate permissions:"
-    echo "mkdir -p /path/to/output_directory"
-    echo "mkdir -p /path/to/log_directory"
-    echo "Ensure the user running RLA has write permissions to these directories."
-}
-
-# Function to find Python 3 executable path
-get_python_path() {
-    PYTHON_BIN=$(which python3)
-    if [ -z "$PYTHON_BIN" ]; then
-        echo "Python 3 not found. Please ensure Python 3.8 or higher is installed."
+        print_instructions "pip3 is required but not found. Please install pip3 using your package manager."
         exit 1
     fi
-    echo "$PYTHON_BIN"
 }
 
-# Function to output the command for creating a systemd service
-output_systemd_setup_cmd() {
-    PYTHON_PATH=$(get_python_path)
+# Instructions for installing Python requirements
+install_requirements_instructions() {
+    print_instructions "To install the required Python packages, run the following command from the root folder of RLA:\n\n  pip3 install -r requirements.txt"
+}
+
+# Instructions for setting up the systemd service
+setup_systemd_service_instructions() {
+    PYTHON_PATH=$(which python3)
     SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
 
-    echo "To create a systemd service for RLA, run the following commands:"
-    cat << EOF > rla.service
+    cat > rla.service << EOF
 [Unit]
 Description=Radware Logging Agent
 After=network.target
@@ -88,16 +48,19 @@ Restart=on-failure
 WantedBy=multi-user.target
 EOF
 
-    echo "sudo mv rla.service /etc/systemd/system/"
-    echo "sudo systemctl daemon-reload"
-    echo "sudo systemctl enable rla.service"
+    print_instructions "A systemd service file has been created (rla.service). To install and enable the service, run the following commands:\n\n  sudo mv rla.service /etc/systemd/system/\n  sudo systemctl daemon-reload\n  sudo systemctl enable rla.service"
+}
+
+# Final step instructions
+final_step_instructions() {
+    print_instructions "Before starting the Radware Logging Agent service, please ensure you have configured your settings in rla.yaml.\n\nTo verify your configuration, you can use the following command:\n\n  python3 radware_logging_agent.py --verify\n\nIf the verification is successful, you can start the service with:\n\n  sudo systemctl start rla.service"
 }
 
 # Main setup instructions
 check_python
 check_pip3
-install_requirements_cmd
-output_directory_setup_cmds
-output_systemd_setup_cmd
+install_requirements_instructions
+setup_systemd_service_instructions
+final_step_instructions
 
-echo "Please ensure all the above steps are completed successfully."
+echo "Please follow the instructions above to complete the setup of Radware Logging Agent."

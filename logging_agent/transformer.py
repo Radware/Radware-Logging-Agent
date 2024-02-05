@@ -1,10 +1,11 @@
 import gzip
 import json
 from logging_agent.cloud_waap import CloudWAAPProcessor
-from .field_mappings import FieldMappings
+from logging_agent.field_mappings import FieldMappings
 import logging_agent.cloud_waap.cloudwaap_enrich as cloud_waap_enrich
-from .app_info import supported_features
-from .logging_config import get_logger
+from logging_agent.app_info import supported_features
+from logging_agent.logging_config import get_logger
+from logging_agent.config_reader import Config
 
 
 # Create a logger for this module
@@ -100,9 +101,9 @@ class Transformer:
         """
         if self.product == "cloud_waap":
             if self.output_format == "cef":
-                from .cloud_waap.cloudwaap_json_to_cef import json_to_cef as conversion_func
+                from logging_agent.cloud_waap.cloudwaap_json_to_cef import json_to_cef as conversion_func
             elif self.output_format == "leef":
-                from .cloud_waap.cloudwaap_json_to_leef import json_to_leef as conversion_func
+                from logging_agent.cloud_waap.cloudwaap_json_to_leef import json_to_leef as conversion_func
             else:
                 conversion_func = None
         else:
@@ -110,4 +111,5 @@ class Transformer:
             conversion_func = None
 
         return conversion_func
-#
+
+

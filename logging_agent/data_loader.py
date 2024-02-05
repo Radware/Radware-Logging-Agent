@@ -2,8 +2,8 @@ import gzip
 import os
 import json
 import glob
-from .downloader import S3Downloader
-from .logging_config import get_logger
+from logging_agent.downloader import S3Downloader
+from logging_agent.logging_config import get_logger
 
 
 class DataLoader:

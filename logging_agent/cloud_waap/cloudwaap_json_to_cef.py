@@ -35,7 +35,6 @@ def map_severity_format(severity, severity_format):
         return severity
 
 
-import datetime
 
 def construct_cef_syslog_header(format_options, log):
     """
@@ -88,94 +87,45 @@ def construct_cef_syslog_header(format_options, log):
     return syslog_header
 
 
-def sanitize_cef_value(value):
-    """Sanitize values for CEF format by escaping reserved characters."""
-    if not isinstance(value, str):
-        value = str(value)  # Ensure the value is a string
-    value = (value.replace('\\', '\\\\')
-             .replace('\r', '\\r')
-             .replace('\n', '\\n')
-             .replace('=', '\\=')
-             .replace('|', '\\|')
-             .replace(',', '\\,')
-             .replace(';', '\\;')
-             .replace('"', '\\"'))
-
-    return value
-
 
 escape_pattern = re.compile(r'([\\=\r\n|,;"\'])')
 
-# def sanitize_cef_value(value):
-#     """
-#     Sanitize values for CEF format by escaping reserved characters.
-#
-#     Args:
-#         value (any): The value to be sanitized for CEF format.
-#
-#     Returns:
-#         str: A sanitized string safe for CEF formatting.
-#     """
-#     try:
-#         if not isinstance(value, str):
-#             value = str(value)  # Convert non-string values to string
-#
-#         # Mapping of characters to their escaped versions
-#         escape_chars = {
-#             '\\': '\\\\',
-#             '\r': '\\r',
-#             '\n': '\\n',
-#             '=': '\\=',
-#             '|': '\\|',
-#             ',': '\\,',
-#             ';': '\\;',
-#             '"': '\\"'
-#         }
-#
-#         for char, escaped_char in escape_chars.items():
-#             value = value.replace(char, escaped_char)
-#
-#         return value
-#     except Exception as e:
-#         logger.error(f"Error sanitizing value for CEF format: {e}")
-#         return str(value)
-# def sanitize_cef_value(value):
-#     """
-#     Sanitize values for CEF format by escaping reserved characters.
-#
-#     Args:
-#         value (any): The value to be sanitized for CEF format.
-#
-#     Returns:
-#         str: A sanitized string safe for CEF formatting.
-#     """
-#     try:
-#         if not isinstance(value, str):
-#             value = str(value)  # Convert non-string values to string
-#
-#         # Function to replace each match with its escaped version
-#         def replace(match):
-#             char = match.group(0)
-#             return {
-#                 '\\': '\\\\',
-#                 '\r': '\\r',
-#                 '\n': '\\n',
-#                 '=': '\\=',
-#                 '|': '\\|',
-#                 ',': '\\,',
-#                 ';': '\\;',
-#                 '"': '\\"',
-#                 "'": "\\'"
-#             }[char]
-#
-#         # Use the precompiled regex pattern to replace each matched character
-#         return escape_pattern.sub(replace, value)
-#     except Exception as e:
-#         logger.error(f"Error sanitizing value for CEF format: {e}")
-#         return str(value)  # Return the original value as a string if an error occurs
+def sanitize_cef_value(value):
+    """
+    Sanitize values for CEF format by escaping reserved characters.
+
+    Args:
+        value (any): The value to be sanitized for CEF format.
+
+    Returns:
+        str: A sanitized string safe for CEF formatting.
+    """
+    try:
+        if not isinstance(value, str):
+            value = str(value)  # Convert non-string values to string
+
+        # Mapping of characters to their escaped versions
+        escape_chars = {
+            '\\': '\\\\',
+            '\r': '\\r',
+            '\n': '\\n',
+            '=': '\\=',
+            '|': '\\|',
+            ',': '\\,',
+            ';': '\\;',
+            '"': '\\"'
+        }
+
+        for char, escaped_char in escape_chars.items():
+            value = value.replace(char, escaped_char)
+
+        return value
+    except Exception as e:
+        logger.error(f"Error sanitizing value for CEF format: {e}")
+        return str(value)
 
 
-def get_cef_header(product, log_type, log, field_mappings, severity_format):
+def construct_cef_header(product, log_type, log, field_mappings, severity_format):
     """
     Generate the CEF header based on the product, log type, and log content.
 
@@ -279,14 +229,21 @@ def json_to_cef(log, log_type, product, field_mappings, format_options):
         str: The transformed log entry in CEF format, or None if an error occurs.
     """
     try:
-        severity_format = format_options.get('severity_format', 1 )
+        severity_format = format_options.get('severity_format', 1)
+        # Set default severity if not present, with specific logic for WebDDoS
+        if 'severity' not in log:
+            if log_type == "WebDDoS":
+                log['severity'] = "Critical"  # Default severity for WebDDoS
+            else:
+                log['severity'] = "Info"  # Default severity for other types
+
+        # Update severity based on the format options
         if severity_format != 1:
-            severity = log.get('severity', "no_severity")
-            if severity != "no_severity":
-                log['severity'] = map_severity_format(severity, severity_format)
+            severity = log['severity']  # Directly use the severity as it is now guaranteed to exist
+            log['severity'] = map_severity_format(severity, severity_format)
 
 
-        cef_header = get_cef_header(product, log_type, log, field_mappings, severity_format)
+        cef_header = construct_cef_header(product, log_type, log, field_mappings, severity_format)
         cef_mappings = field_mappings.get(product, {}).get(log_type, {}).get("cef", {})
         static_mapping = cef_mappings.get("static_mapping", {})
         prefix = cef_mappings.get("prefix", "")

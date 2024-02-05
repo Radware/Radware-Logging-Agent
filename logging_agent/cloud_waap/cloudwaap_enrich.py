@@ -36,11 +36,12 @@ def enrich_access_log(event, format_options, output_format, metadata, log_type):
 
             output_time_format = format_options.get('time_format', "epoch_ms_str")
             access_input_format = '%d/%b/%Y:%H:%M:%S %z'
-            event['time'] = CloudWAAPProcessor.transform_time(
-                event['time'],
-                input_format=access_input_format,
-                output_format=output_time_format
-            )
+            if 'time' in event:
+                event['time'] = CloudWAAPProcessor.transform_time(
+                    event['time'],
+                    input_format=access_input_format,
+                    output_format=output_time_format
+                )
 
             if event.get('country_code') in {"", "--"}:
                 event.pop('country_code', None)
@@ -78,6 +79,9 @@ def enrich_waf_log(event, format_options, output_format, metadata, log_type):
         dict: The enriched WAF log event.
     """
     try:
+        tenant_name = metadata.get('tenant_name', '')
+        if tenant_name:
+            event['tenant_name'] = tenant_name
         format_option = format_options.get('unify_fields', True)
         if output_format in ['json', 'ndjson']:
             event['log_type'] = log_type
@@ -129,7 +133,6 @@ def enrich_waf_log(event, format_options, output_format, metadata, log_type):
         logger.error(f"Error in enriching WAF log: {e}")
         return {}
 
-from urllib.parse import urlparse
 
 def enrich_bot_log(event, format_options, output_format, metadata, log_type):
     """
@@ -146,6 +149,9 @@ def enrich_bot_log(event, format_options, output_format, metadata, log_type):
         dict: The enriched Bot log event.
     """
     try:
+        tenant_name = metadata.get('tenant_name', '')
+        if tenant_name:
+            event['tenant_name'] = tenant_name
         format_option = format_options.get('unify_fields', True)
         if output_format in ['json', 'ndjson']:
             event['log_type'] = log_type
@@ -208,6 +214,9 @@ def enrich_ddos_log(event, format_options, output_format, metadata, log_type):
         dict: The enriched DDoS log event.
     """
     try:
+        tenant_name = metadata.get('tenant_name', '')
+        if tenant_name:
+            event['tenant_name'] = tenant_name
         format_option = format_options.get('unify_fields', True)
         if output_format in ['json', 'ndjson']:
             event['log_type'] = log_type
@@ -270,6 +279,9 @@ def enrich_webddos_log(event, format_options, output_format, metadata, log_type)
         dict: The enriched WebDDoS log event.
     """
     try:
+        tenant_name = metadata.get('tenant_name', '')
+        if tenant_name:
+            event['tenant_name'] = tenant_name
         format_option = format_options.get('unify_fields', True)
         if output_format in ['json', 'ndjson']:
             event['log_type'] = log_type
@@ -335,6 +347,9 @@ def enrich_csp_log(event, format_options, output_format, metadata, log_type):
         dict: The enriched CSP log event.
     """
     try:
+        tenant_name = metadata.get('tenant_name', '')
+        if tenant_name:
+            event['tenant_name'] = tenant_name
         format_option = format_options.get('unify_fields', True)
         if output_format in ['json', 'ndjson']:
             event['log_type'] = log_type
@@ -342,6 +357,7 @@ def enrich_csp_log(event, format_options, output_format, metadata, log_type):
         if format_option or output_format in ['cef', 'leef']:
             application_name = metadata.get('application_name', '')
             event["time"] = event.pop("receivedTimeStamp", "")
+
             event["application_name"] = event.pop("applicationName", application_name)
 
             if "applicationId" in event:
@@ -357,11 +373,15 @@ def enrich_csp_log(event, format_options, output_format, metadata, log_type):
                 event['trans_id'] = event.pop('transId')
 
             output_time_format = format_options.get('time_format', "epoch_ms_str")
-            event['time'] = CloudWAAPProcessor.transform_time(
-                event['time'],
-                input_format="epoch_ms_str",
-                output_format=output_time_format
-            )
+            if 'time' in event:
+                if event['time']:
+                    event['time'] = CloudWAAPProcessor.transform_time(
+                        event['time'],
+                        input_format="epoch_ms_str",
+                        output_format=output_time_format
+                    )
+                else:
+                    del event['time']
 
             if 'enrichmentContainer' in event:
                 event = CloudWAAPProcessor.process_enrichment_container(event)

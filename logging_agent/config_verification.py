@@ -1,29 +1,33 @@
 import os
 import boto3
 from .logging_config import get_logger
-from urllib.parse import urlparse
 from .config_reader import Config
 from .app_info import supported_features
 
 logger = get_logger('config_verification')
 
 
-def verify_aws_credentials(config, agents):
+def verify_aws_credentials(config, agents_config):
     # Check if any agent is using SQS, if not, skip AWS credentials verification
-    if not any(agent['type'] == 'sqs' for agent in agents):
+    require_verification= False
+    if agents_config:
+        for agent in agents_config:
+            if agent.get('type', '').lower() == 'sqs':
+                require_verification = True
+    if require_verification:
+        try:
+            sqs = boto3.client('sqs', region_name=config['aws_credentials']['region'],
+                               aws_access_key_id=config['aws_credentials']['access_key_id'],
+                               aws_secret_access_key=config['aws_credentials']['secret_access_key'])
+            sqs.list_queues()
+            logger.info("AWS credentials verified successfully.")
+            return True
+        except Exception as e:
+            logger.error(f"AWS credentials verification failed: {e}")
+            return False
+    else:
         logger.info("No SQS agents configured. Skipping AWS credentials verification.")
         return True
-
-    try:
-        sqs = boto3.client('sqs', region_name=config['aws_credentials']['region'],
-                           aws_access_key_id=config['aws_credentials']['access_key_id'],
-                           aws_secret_access_key=config['aws_credentials']['secret_access_key'])
-        sqs.list_queues()
-        logger.info("AWS credentials verified successfully.")
-        return True
-    except Exception as e:
-        logger.error(f"AWS credentials verification failed: {e}")
-        return False
 def verify_agent_config(agent_config):
     product = agent_config.get('product')
     if product not in supported_features['products']:
@@ -60,10 +64,10 @@ def verify_tls_config(tls_config):
             return False
 
     # Check for client certificate and key only if they are specified
-    if 'client_cert' in tls_config and not os.path.exists(tls_config['client_cert']):
+    if 'client_cert' in tls_config and tls_config['client_cert'] != "" and not os.path.exists(tls_config['client_cert']):
         logger.error(f"Client certificate file not found: {tls_config['client_cert']}")
         return False
-    if 'client_key' in tls_config and not os.path.exists(tls_config['client_key']):
+    if 'client_key' in tls_config and tls_config['client_key'] != "" and not os.path.exists(tls_config['client_key']):
         logger.error(f"Client key file not found: {tls_config['client_key']}")
         return False
 
@@ -76,7 +80,7 @@ def verify_http_https_config(http_config):
     return True
 
 def verify_general_config(general_config):
-    for key in ['log_file', 'output_directory', 'log_directory']:
+    for key in ['output_directory', 'log_directory']:
         if not os.path.exists(general_config[key]):
             logger.error(f"Path does not exist: {general_config[key]}")
             return False
@@ -86,21 +90,59 @@ def verify_general_config(general_config):
         return False
     return True
 
-def verify_configuration(config):
-    logger.info("Starting configuration verification...")
+def verify_selected_output_config(output_config, formats_config):
+    """
+    Verify the selected output configuration for CEF or LEEF formats.
 
+    Args:
+        output_config (dict): Output configuration from the user.
+        formats_config (dict): Format-specific configurations.
+
+    Returns:
+        bool: True if the selected output configuration is valid, False otherwise.
+    """
+    output_format = output_config.get('output_format')
+    format_options = formats_config.get(output_format, {})
+    allowed_time_formats = ['epoch_ms_str', 'epoch_ms_int', 'MM dd yyyy HH:mm:ss', 'ISO8601']
+    allowed_severity_formats = [1, 2, 3]
+
+    # Verify unify_fields for CEF and LEEF
+    if output_format in ['cef', 'leef']:
+        if not format_options.get('unify_fields', True):
+            logger.error(f"'unify_fields' must be True for {output_format} format.")
+            return False
+
+    # Verify time_format
+    time_format = format_options.get('time_format', '')
+    if time_format not in allowed_time_formats:
+        logger.error(f"Invalid 'time_format' for {output_format} format: {time_format}. Allowed options are {allowed_time_formats}.")
+        return False
+
+    # Verify severity_format for CEF and LEEF
+    if output_format in ['cef', 'leef']:
+        severity_format = format_options.get('severity_format')
+        if severity_format not in allowed_severity_formats:
+            logger.error(f"Invalid 'severity_format' for {output_format} format: {severity_format}. Allowed options are {allowed_severity_formats}.")
+            return False
+
+    return True
+
+
+def verify_configuration(config, agents_config):
+    logger.info("Starting configuration verification...")
     # Verify general configuration
     if not verify_general_config(config['general']):
         return False
 
     # Verify AWS credentials
-    if not verify_aws_credentials(config, config.get('agents', [])):
+    if not verify_aws_credentials(config, agents_config):
         return False
 
     # Verify each agent configuration
-    for agent_config in config.get('agents', []):
-        if not verify_agent_config(agent_config):
-            return False
+    if agents_config:
+        for agent in agents_config:
+            if not verify_agent_config(agent):
+                return False
 
     # Verify output configuration
     if not verify_output_config(config['output']):
@@ -114,6 +156,9 @@ def verify_configuration(config):
     for protocol in ['http', 'https']:
         if protocol in config and not verify_http_https_config(config[protocol]):
             return False
+
+    if not verify_selected_output_config(config['output'], config['formats']):
+        return False
 
     logger.info("Configuration verification completed successfully.")
     return True

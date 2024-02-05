@@ -9,7 +9,7 @@
           "version": "1.0",
           "log_type": "Access",
           "title": "Access Log",
-          "severity": "Info"
+          "severity": "fromlog"
         },
         "static_mapping": {
           "time": "rt",
@@ -52,6 +52,7 @@
           "http_method": "method",
           "http_bytes_in": "bytesIn",
           "http_bytes_out": "bytesOut",
+          "severity": "sev",
           "user_agent": "userAgent",
           "referrer": "referrer",
           "cookie": "cookie",
@@ -84,9 +85,9 @@
           "uri": "uri",
           "reason": "reason",
           "category": "cat",
+          "user_agent": "requestClientApplication",
           "referrer": "requestContext",
-          "cookie": "requestCookies",
-          "user_agent": "requestClientApplication"
+          "cookie": "requestCookies"
        }
       },
       "leef": {
@@ -108,13 +109,14 @@
           "protocol": "proto",
           "http_method": "method",
           "request": "request",
+          "uri": "uri",
           "name": "name",
           "reason": "reason",
           "category": "cat",
+          "severity": "sev",
           "referrer": "referrer",
           "cookie": "cookie",
-          "user_agent": "userAgent",
-          "severity": "sev"
+          "user_agent": "userAgent"
        }
       }
     },
@@ -127,19 +129,20 @@
           "version": "1.0",
           "log_type": "Bot",
           "title": "fromlog",
-          "severity": "Info"
+          "severity": "fromlog"
         },
         "static_mapping": {
           "time": "rt",
           "action": "act",
           "host": "dhost",
-          "uri": "uri",
-          "request": "request",
           "source_ip": "src",
+          "request": "request",
+          "uri": "uri",
           "reason": "reason",
           "category": "cat",
-          "referrer": "requestContext",
-          "user_agent": "requestClientApplication"
+          "user_agent": "requestClientApplication",
+          "referrer": "requestContext"
+
         }
       },
       "leef": {
@@ -154,14 +157,15 @@
           "time": "eventTime",
           "action": "action",
           "host": "dhost",
-          "uri": "uri",
-          "request": "request",
           "source_ip": "src",
+          "request": "request",
+          "uri": "uri",
           "name": "name",
           "reason": "reason",
           "category": "cat",
-          "referrer": "referrer",
-          "user_agent": "userAgent"
+          "severity": "sev",
+          "user_agent": "userAgent",
+          "referrer": "referrer"
         }
       }
     },
@@ -174,7 +178,7 @@
         "version": "1.0",
         "log_type": "DDoS",
         "title": "fromlog",
-        "severity": "Info"
+        "severity": "fromlog"
       },
       "static_mapping": {
         "time": "rt",
@@ -206,7 +210,8 @@
         "protocol": "proto",
         "name": "name",
         "reason":"reason",
-        "category": "cat"
+        "category": "cat",
+        "severity": "sev"
         }
       }
     },
@@ -219,16 +224,16 @@
           "version": "1.0",
           "log_type": "WebDDoS",
           "title": "fromlog",
-          "severity": "Critical"
+          "severity": "fromlog"
         },
         "static_mapping": {
+          "time": "rt",
           "action": "act",
           "host": "dhost",
-          "time": "rt",
-          "startTime": "start",
-          "endTime": "end",
           "reason": "reason",
-          "category": "category"
+          "category": "category",
+          "startTime": "start",
+          "endTime": "end"
         }
       },
       "leef": {
@@ -240,13 +245,15 @@
           "log_type": "WebDDoS"
         },
         "static_mapping": {
+          "time": "eventTime",
           "action": "action",
           "host": "dhost",
-          "time": "eventTime",
           "name": "name",
           "reason": "reason",
           "category": "cat",
-          "severity": "sev"
+          "severity": "sev",
+          "startTime": "startTime",
+          "endTime": "endTime"
         }
       }
     },
@@ -262,9 +269,9 @@
           "severity": "fromlog"
         },
         "static_mapping": {
+          "time": "rt",
           "action": "act",
           "host": "dhost",
-          "time": "rt",
           "reason": "reason",
           "category": "category",
           "count": "cnt"
@@ -279,13 +286,13 @@
           "log_type": "WebDDoS"
         },
         "static_mapping": {
+          "time": "eventTime",
           "action": "action",
           "host": "dhost",
-          "time": "eventTime",
-          "severity": "sev",
           "name": "name",
           "reason": "reason",
           "category": "category",
+          "severity": "sev",
           "count": "cnt"
         }
       }

@@ -1,13 +1,9 @@
-import os
-import glob
-from .downloader import Downloader
-from .downloader import S3Downloader
-from .app_info import supported_features
-from .data_loader import DataLoader
-from .transformer import Transformer
-from .sender import Sender
-from .utility import Utility
-from .logging_config import get_logger
+from logging_agent.app_info import supported_features
+from logging_agent.data_loader import DataLoader
+from logging_agent.transformer import Transformer
+from logging_agent.sender import Sender
+from logging_agent.utility import Utility
+from logging_agent.logging_config import get_logger
 from logging_agent.cloud_waap import CloudWAAPProcessor
 import datetime
 
@@ -33,15 +29,21 @@ class DataProcessor:
         Returns:
             bool: True if the processing is successful, False otherwise.
         """
+        file_size = input_fields.get('expected_size', 'Unknown size')
         start_time = datetime.datetime.now()
+        self.logger.info(f"Starting processing. File size: {file_size} bytes")
+
         input_type = self.config.get('type')  # Retrieve input type from config
         product = self.config.get('product')  # Retrieve product from config
+
+        load_start_time = datetime.datetime.now()
         data_loader = DataLoader(self.config)
         loaded_data = data_loader.load_data(input_type, input_fields)
+        load_end_time = datetime.datetime.now()
+        self.logger.info(f"Loading completed. Time taken: {load_end_time - load_start_time}. File size: {file_size} bytes")
 
-        data = loaded_data.get('data')
+        data = loaded_data.get('data', None)
         metadata = loaded_data.get('metadata', {})
-
         if data is None:
             self.logger.error(f"Failed to load data for input type: {input_type}")
             return False
@@ -58,21 +60,31 @@ class DataProcessor:
             return True  # Successfully handled by skipping
 
         data_fields = self.gather_data_fields(input_fields, input_type, log_type, product)
-
+        transform_start_time = datetime.datetime.now()
         transformed_data = self.transform_data(data, data_fields)
+        transform_end_time = datetime.datetime.now()
+        self.logger.info(f"Transformation completed. Time taken: {transform_end_time - transform_start_time}. File size: {file_size} bytes")
+
         if not transformed_data:
             self.logger.error("Failed to transform data")
             return False
+        send_start_time = datetime.datetime.now()
 
         success = self.finalize_and_send(transformed_data)
+        send_end_time = datetime.datetime.now()
+        self.logger.info(f"Sending completed. Time taken: {send_end_time - send_start_time}. File size: {file_size} bytes")
+
 
         # Cleanup
         file_path = metadata.get('file_path')
         if file_path:
             Utility.cleanup(file_path)
 
+        # Cleanup and final logging
         end_time = datetime.datetime.now()
-        self.logger.info(f"Task completed. Time taken: {end_time - start_time}")
+        self.logger.info(f"Total processing time: {end_time - start_time}. File size: {file_size} bytes")
+
+        #self.logger.info(f"Task completed. Time taken: {end_time - start_time}")
         return success
 
     def identify_product_log_type(self, log_info, input_type, product):
@@ -168,7 +180,6 @@ class DataProcessor:
         batch_mode = self.config[output_type].get('batch', False)
         delimiter = self.config['formats'][output_format].get('delimiter', '\n')
         tls_config = self.config['tls'] if output_type == 'tls' else {}
-
         destination_config = {
             'destination': destination,
             'output_format': output_format,

@@ -9,7 +9,7 @@ general:
   log_file: '' # Path to the log file where the agent's internal logs will be written.
   output_directory: ''  # Directory to store temporary files during processing.
   log_directory: ''  # Directory for storing log files.
-  logging_levels: "INFO"  # Logging level for the agent's internal logs. Options: "INFO", "WARNING", "DEBUG", "ERROR".
+  logging_levels: "ERROR"  # Logging level for the agent's internal logs. Options: "INFO", "WARNING", "DEBUG", "ERROR".
 
 # AWS Simple Queue Service (SQS) Settings
 # ---------------------------------------
@@ -52,10 +52,10 @@ output:
 #
 # General Format Options:
 # - 'time_format': Defines the format for timestamps. Options:
+#   - 'ISO8601': ISO 8601 formatted date-time string.
 #   - 'epoch_ms_str': String representation of epoch time in milliseconds.
 #   - 'epoch_ms_int': Integer representation of epoch time in milliseconds.
 #   - 'MM dd yyyy HH:mm:ss': Custom formatted date-time string.
-#   - 'ISO8601': ISO 8601 formatted date-time string.
 # - 'severity_format' (only for CEF and LEEF): Defines the format for representing log severity levels. Options:
 #   - 1: Standard textual representations ("info", "low", "warning", "high", "critical").
 #   - 2: Descriptive textual representations ("Unknown", "Low", "Medium", "High", "Very-High").
@@ -66,25 +66,23 @@ formats:
     time_format: ""  # Time format for JSON logs
     unify_fields: true
   # Uncomment below sections as needed for other formats
-  # ndjson:
-  #   time_format: "MM dd yyyy HH:mm:ss"  # Time format for newline-delimited JSON logs
-  #   unify_fields: true
-  # cef:
-  #   delimiter: "\n"  # Delimiter used to separate CEF events
-  #   time_format: "MM dd yyyy HH:mm:ss"  # Time format for CEF logs
-  #   unify_fields: true
-  #   severity_format: 1
-  #   syslog_header:
-  #     generate_header: true  # Enable or disable the generation of syslog header
-  #     host: "product"  # Source of the host field in syslog header
-  # leef:
-  #   delimiter: "\n"  # Delimiter used to separate LEEF events
-  #   time_format: "MM dd yyyy HH:mm:ss"  # Time format for LEEF logs
-  #   unify_fields: true
-  #   severity_format: 1
-  #   syslog_header:
-  #     generate_header: true  # Enable or disable the generation of syslog header
-  #     host: "product"  # Source of the host field in syslog header
+  ndjson:
+    time_format: "ISO8601"  # Time format for newline-delimited JSON logs
+    unify_fields: true
+  cef:
+    delimiter: "\n"  # Delimiter used to separate CEF events
+    time_format: "ISO8601"  # Time format for CEF logs
+    severity_format: 1
+    syslog_header:
+      generate_header: true  # Enable or disable the generation of syslog header
+      host: "product"  # Source of the host field in syslog header
+  leef:
+    delimiter: "\n"  # Delimiter used to separate LEEF events
+    time_format: "ISO8601"  # Time format for LEEF logs
+    severity_format: 1
+    syslog_header:
+      generate_header: true  # Enable or disable the generation of syslog header
+      host: "product"  # Source of the host field in syslog header
 
 # TLS Configuration
 # -----------------

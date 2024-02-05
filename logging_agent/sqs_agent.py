@@ -87,7 +87,7 @@ class SQSAgent:
                 )
 
                 # Handle message deletion based on processing success and config settings
-                if process_success or (not process_success and self.agent_config['delete_on_failure']):
+                if process_success or (not process_success and self.agent_config['sqs_settings']['delete_on_failure']):
                     self.delete_message_from_sqs(message_details['receipt_handle'])
 
             except queue.Empty:

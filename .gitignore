@@ -1,5 +1,6 @@
 # Ignore Python bytecode directories
 **/__pycache__/
+**/.pytest_cache/
 
 # Ignore JetBrains IDE settings folder
 .idea/

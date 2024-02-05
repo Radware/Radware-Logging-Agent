@@ -188,11 +188,18 @@ def json_to_leef(log, log_type, product, field_mappings, format_options):
     """
     try:
         severity_format = format_options.get('severity_format', 1)
-        # Update severity if required by the format options
+        # Set default severity if not present, with specific logic for WebDDoS
+        if 'severity' not in log:
+            if log_type == "WebDDoS":
+                log['severity'] = "Critical"  # Default severity for WebDDoS
+            else:
+                log['severity'] = "Info"  # Default severity for other types
+
+        # Update severity based on the format options
         if severity_format != 1:
-            severity = log.get('severity', "no_severity")
-            if severity != "no_severity":
-                log['severity'] = map_severity_format(severity, severity_format)
+            severity = log.get('severity', "Info")  # Directly use the severity as it is now guaranteed to exist
+            log['severity'] = map_severity_format(severity, severity_format)
+
 
         leef_header = get_leef_header(product, log_type, field_mappings)
         leef_mappings = field_mappings.get(product, {}).get(log_type, {}).get("leef", {})

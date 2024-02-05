@@ -18,7 +18,6 @@ def start_agents(agents_config):
     for agent_config in agents_config:
         agent_type = agent_config.get('type')
         if agent_type == 'sqs':
-            print(agent_config)
             agent = SQSAgent(agent_config)
         else:
             # Handle other types or log an error

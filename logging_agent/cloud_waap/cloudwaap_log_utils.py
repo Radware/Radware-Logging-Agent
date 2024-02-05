@@ -35,7 +35,6 @@ class CloudWAAPProcessor:
                 elif last_part.startswith("rdwr_event"):
                     log_type = parts[-2]
 
-            logger.debug(f"Identified log type for key '{key}': {log_type}")
             return log_type
         except Exception as e:
             logger.error(f"Error identifying log type for key '{key}': {e}")
@@ -56,9 +55,8 @@ class CloudWAAPProcessor:
             parts = key.split("/")
             if len(parts) >= 4:
                 tenant_name = parts[-4]
-                logger.debug(f"Extracted tenant name from key '{key}': {tenant_name}")
                 return tenant_name
-            logger.warning(f"Unable to extract tenant name from key: {key}")
+            logger.error(f"Unable to extract tenant name from key: {key}")
             return ""
         except Exception as e:
             logger.error(f"Error extracting tenant name from key '{key}': {e}")
@@ -82,14 +80,14 @@ class CloudWAAPProcessor:
 
             if match:
                 application_name = match.group(1)
-                logger.debug(f"Extracted application name from key '{key}': {application_name}")
                 return application_name
             else:
-                logger.warning(f"No application name found in key: {key}")
+                logger.error(f"No application name found in key: {key}")
                 return None
         except Exception as e:
             logger.error(f"Error parsing application name from key '{key}': {e}")
             return None
+
 
 
     @staticmethod
@@ -106,206 +104,102 @@ class CloudWAAPProcessor:
         Returns:
             tuple: A tuple containing the parsed method, full URL, HTTP version, and URI path.
         """
+
+        # Known HTTP versions in lowercase for case-insensitive comparison
+        known_versions = ['http/1.0', 'http/1.1','http/1.2', 'http/2', 'http/2.0' 'http/3', 'http/0.9']
+
+        # Initialize default values
+        method, http_version, uri_only, uri = "-", "-", "-", request
+
+        # Split the request and check for a valid HTTP version
         try:
-            logger.debug(f"Parsing access request: {request}")
-
-            # Known HTTP versions for comparison
-            known_versions = {'http/1.0', 'http/1.1', 'http/1.2', 'http/2', 'http/2.0', 'http/3', 'http/0.9'}
-
-            # Default values
-            method = http_method if http_method and http_method != "-" else "-"
-            http_version = "-"
-            uri_only = ""
-            full_url = f"{protocol}://{host}"
-
-            if method != "-":
+            if http_method != "-":
                 parts = request.split(' ')
-                if len(parts) > 1 and parts[-1].lower() in known_versions:
-                    http_version = parts[-1]
-                    uri = ' '.join(parts[:-1])
+                if parts[-1].lower() in known_versions:
+                    http_version = parts[-1]  # Valid HTTP version found
+                    if len(parts) == 3:
+                        method = http_method if http_method and http_method != "-" else parts[0]
+                        uri = parts[1]
+
+                    else:
+                        # Combine all parts except the last into the URI
+                        uri = ' '.join(parts[:-1])
+
                 else:
-                    uri = request
+                    # No valid HTTP version found, entire request is the URI
+                    logger.debug(
+                        f"No Valid HTTP version found, defaulting values: method={method}, full_url={request}, http_version={http_version}")
+                    return http_method, request, http_version, uri_only
 
-                parsed_uri = urlparse(uri)
-                uri_only = parsed_uri.path or "/"
-                full_url += uri_only
-
-                logger.debug(f"Parsed access request: method={method}, full_url={full_url}, http_version={http_version}, uri={uri_only}")
-                return method, full_url, http_version, uri_only
             else:
-                logger.debug(f"HTTP method not found in request: {request}")
-                return method, request, http_version, uri_only
+                # No valid HTTP method found, entire request is the URI
+                logger.debug(
+                    f"No valid HTTP method found, defaulting values: method={method}, full_url={request}, http_version={http_version}")
+                return http_method, request, http_version, uri_only
+
+            # Parse the URI using urllib.parse
+            parsed_uri = urlparse(uri)
+            uri_only = parsed_uri.path  # The path component of the URI
+
+            # Reconstruct the full URL
+            full_url = f"{protocol}://{host}{uri}"
 
         except Exception as e:
-            logger.error(f"Error parsing access request '{request}': {e}")
-            return "-", request, "-", "-"
-    # @staticmethod
-    # def parse_access_request(request, protocol, host, http_method):
-    #     logger.debug("Parsing access request")
-    #
-    #     # Known HTTP versions in lowercase for case-insensitive comparison
-    #     known_versions = ['http/1.0', 'http/1.1','http/1.2', 'http/2', 'http/2.0' 'http/3', 'http/0.9']
-    #
-    #     # Initialize default values
-    #     method, http_version, uri_only, uri = "-", "-", "-", request
-    #
-    #     # Split the request and check for a valid HTTP version
-    #     try:
-    #         if http_method != "-":
-    #             parts = request.split(' ')
-    #             if parts[-1].lower() in known_versions:
-    #                 http_version = parts[-1]  # Valid HTTP version found
-    #                 if len(parts) == 3:
-    #                     method = http_method if http_method and http_method != "-" else parts[0]
-    #                     uri = parts[1]
-    #
-    #                 else:
-    #                     # Combine all parts except the last into the URI
-    #                     uri = ' '.join(parts[:-1])
-    #
-    #             else:
-    #                 # No valid HTTP version found, entire request is the URI
-    #                 logger.debug(
-    #                     f"No Valid HTTP version found, defaulting values: method={method}, full_url={request}, http_version={http_version}")
-    #                 return http_method, request, http_version, uri_only
-    #
-    #         else:
-    #             # No valid HTTP method found, entire request is the URI
-    #             logger.debug(
-    #                 f"No valid HTTP method found, defaulting values: method={method}, full_url={request}, http_version={http_version}")
-    #             return http_method, request, http_version, uri_only
-    #
-    #         # Parse the URI using urllib.parse
-    #         parsed_uri = urlparse(uri)
-    #         uri_only = parsed_uri.path  # The path component of the URI
-    #
-    #         # Reconstruct the full URL
-    #         full_url = f"{protocol}://{host}{uri}"
-    #         logger.debug(
-    #             f"Parsed access request: method={method}, full_url={full_url}, http_version={http_version}")
-    #
-    #     except Exception as e:
-    #         logger.error(f"Error parsing URL: {e}")
-    #
-    #
-    #     return method, full_url, http_version, uri_only
+            logger.error(f"Error parsing URL: {e}")
 
-    # @staticmethod
-    # def parse_access_request(request, protocol, host, http_method):
-    #     """
-    #     Parse an HTTP access request to extract the method, full URL, and HTTP version.
-    #
-    #     Parameters:
-    #     - request (str): The raw request string.
-    #     - protocol (str): The protocol used ('http' or 'https').
-    #     - host (str): The host to which the request was made.
-    #
-    #     Returns:
-    #     - tuple: A tuple containing the method, full URL, and HTTP version.
-    #              Returns the original request and empty strings if the format doesn't match.
-    #     """
-    #     logger.debug("Parsing access request")
-    #     parts = request.split(' ')
-    #     if len(parts) != 3:
-    #         logger.warning(f"Access request format does not match expected format: {request}")
-    #
-    #         return request, "", ""  # Return the original request if it doesn't match the expected format
-    #
-    #     method, uri, http_version = parts
-    #     full_url = "{}://{}{}".format(protocol, host, uri)
-    #     logger.debug(f"Parsed access request: method={method}, full_url={full_url}, http_version={http_version}")
-    #     return method, full_url, http_version, uri
+
+        return method, full_url, http_version, uri_only
+
 
     @staticmethod
     def parse_waf_request(request, protocol, host):
         """
-        Parses a WAF request to extract method, full URL, HTTP version, and headers.
+        Parse a WAF request to extract the method, full URL, HTTP version, and specified headers.
+        Converts all headers into a single string.
 
-        Args:
-            request (str): The full HTTP request string from the WAF log.
-            protocol (str): The request protocol ('http' or 'https').
-            host (str): The host to which the request was made.
+        Parameters:
+        - request (str): The raw request string.
+        - protocol (str): The protocol used ('http' or 'https').
+        - host (str): The host to which the request was made.
 
         Returns:
-            tuple: Method, full URL, HTTP version, and header strings (cookie, user-agent, referrer, all headers).
+        - tuple: A tuple containing the method, full URL, HTTP version, cookie, user-agent, referrer, and all headers as a string.
+                 Returns an empty string for each element if not found or if the request doesn't match the expected format.
         """
         try:
-            # Default values if parsing fails
-            default_values = ("", "", "", "", "", "", "")
-
+            # Split the request line from the headers
             lines = request.split('\r\n')
             request_line = lines[0]
             headers = lines[1:]
 
-            # Parse request line
+            # Extract method, URI, and HTTP version from the request line
             parts = request_line.split(' ')
-            if len(parts) < 3:
-                logger.error("Invalid WAF request line format.")
-                return default_values
-
-            method, uri, http_version = parts[:3]
+            method = parts[0] if len(parts) > 0 else ""
+            uri = parts[1] if len(parts) > 1 else ""
+            http_version = parts[2] if len(parts) > 2 else ""
             full_url = f"{protocol}://{host}{uri}"
 
-            # Extract specific headers and compile all headers into a single string
-            cookie = next((line.split(' ')[1] for line in headers if line.startswith('Cookie:')), "")
-            user_agent = next((line.split(' ')[1] for line in headers if line.startswith('User-Agent:')), "")
-            referrer = next((line.split(' ')[1] for line in headers if line.startswith('Referer:')), "")
-            headers_str = '; '.join(headers)
+            # Initialize header variables
+            cookie = ""
+            user_agent = ""
+            referrer = ""
+            headers_str = ""
 
-            return method, full_url, http_version, cookie, user_agent, referrer, headers_str
+            # Compile all headers into a single string and extract specific headers
+            for line in headers:
+                if line.startswith('Cookie:'):
+                    cookie = line.split('Cookie: ')[1]
+                elif line.startswith('User-Agent:'):
+                    user_agent = line.split('User-Agent: ')[1]
+                elif line.startswith('Referer:'):
+                    referrer = line.split('Referer: ')[1]
+
+                headers_str += line + '; '
+
+            return method, full_url, http_version, cookie, user_agent, referrer, headers_str.strip('; ')
         except Exception as e:
             logger.error(f"Error parsing WAF request: {e}")
-            return default_values
-
-    # @staticmethod
-    # def parse_waf_request(request, protocol, host):
-    #     """
-    #     Parse a WAF request to extract the method, full URL, HTTP version, and specified headers.
-    #     Converts all headers into a single string.
-    #
-    #     Parameters:
-    #     - request (str): The raw request string.
-    #     - protocol (str): The protocol used ('http' or 'https').
-    #     - host (str): The host to which the request was made.
-    #
-    #     Returns:
-    #     - tuple: A tuple containing the method, full URL, HTTP version, cookie, user-agent, referrer, and all headers as a string.
-    #              Returns an empty string for each element if not found or if the request doesn't match the expected format.
-    #     """
-    #     try:
-    #         # Split the request line from the headers
-    #         lines = request.split('\r\n')
-    #         request_line = lines[0]
-    #         headers = lines[1:]
-    #
-    #         # Extract method, URI, and HTTP version from the request line
-    #         parts = request_line.split(' ')
-    #         method = parts[0] if len(parts) > 0 else ""
-    #         uri = parts[1] if len(parts) > 1 else ""
-    #         http_version = parts[2] if len(parts) > 2 else ""
-    #         full_url = f"{protocol}://{host}{uri}"
-    #
-    #         # Initialize header variables
-    #         cookie = ""
-    #         user_agent = ""
-    #         referrer = ""
-    #         headers_str = ""
-    #
-    #         # Compile all headers into a single string and extract specific headers
-    #         for line in headers:
-    #             if line.startswith('Cookie:'):
-    #                 cookie = line.split('Cookie: ')[1]
-    #             elif line.startswith('User-Agent:'):
-    #                 user_agent = line.split('User-Agent: ')[1]
-    #             elif line.startswith('Referer:'):
-    #                 referrer = line.split('Referer: ')[1]
-    #
-    #             headers_str += line + '; '
-    #
-    #         return method, full_url, http_version, cookie, user_agent, referrer, headers_str.strip('; ')
-    #     except Exception as e:
-    #         logger.error(f"Error parsing WAF request: {e}")
-    #         return "", "", "", "", "", "", ""
+            return "", "", "", "", "", "", ""
 
     @staticmethod
     def enrich_waf_log(log, method, full_url, http_version, cookie, user_agent, referrer, headers):
@@ -398,9 +292,9 @@ class CloudWAAPProcessor:
         try:
             # Initialize variables for the epoch time in milliseconds
             epoch_time_ms = 0
-
+            # TODO if output in epoch_ms_str or epoch_ms_int is short then 13 char then add 0 so output like 1706598020 would become 1706598020000 and if it was 17065980 turn to 1706598000000
             # Handle input time based on the input format
-            if input_format == 'epoch_ms':
+            if input_format in ['epoch_ms', 'epoch_ms_str']:
                 epoch_time_ms = int(time_string)
             elif input_format in ['%d/%b/%Y:%H:%M:%S %z', "%d-%m-%Y %H:%M:%S", '%b %d %Y %H:%M:%S', 'ISO8601',
                                   'ISO8601_NS']:
