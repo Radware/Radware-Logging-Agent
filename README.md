@@ -128,22 +128,29 @@ output:
 To install the Radware Logging Agent on a Linux system, follow these steps:
 
 1. **Clone the Repository**: 
-   First, clone the repository from GitHub:
-   ```bash
-   git clone https://github.com/Radware/Radware-Logging-Agent.git
-   cd Radware-Logging-Agent
-   ```
+   Download the latest release package from the [Releases](https://github.com/Radware/Radware-Logging-Agent/releases) section of the Radware Logging Agent GitHub repository. Look for the package named like `rla_{latest_release}.tar.gz`, where `{latest_release}` indicates the version number.
 2. **Run the Installation Script**:
-   The repository includes a script setup_rla.sh which automates the installation process:
+   Once you have downloaded the latest release package, extract it and run the included installation script. Remember to replace `{latest_release}` with the actual version number you downloaded. This script automates the setup process, installing all necessary components.
    ```bash
-   cd rla 
-   chmod +x install_rla.sh
-   sudo ./install_rla.sh
+   tar -zxvf rla_{latest_release}.tar.gz
+   cd rla
+   chmod +x install.sh
+   sudo ./install.sh
    ```
-   Follow the instructions provided by the script. It will guide you through installing Python 3.8 or higher, pip3, and other necessary components.
 3. **Configure rla.yaml**:
-   After installation, configure the rla.yaml file according to your environment and requirements.
-4. **Start the Service**:
+After installation, you'll need to configure the `rla.yaml` file to suit your specific environment and requirements. Use the following command to edit the configuration file:
+    ```bash
+    sudo vi /etc/rla/rla.yaml
+     ```
+    Ensure that you correctly set all necessary configuration options according to your deployment needs.
+
+4. **Using Certificates**:
+If your setup requires certificates, ensure they are correctly placed in the desired directory and have the appropriate ownership settings. Use the following command to change the ownership of the certificate files to the rla user and group, replacing <your_certificate_file> with the actual file name of your certificate:
+    ```bash
+    sudo chown rla:rla <your_certificate_file>
+    ```
+    Repeat this command for each certificate file you need to use with the Radware Logging Agent.
+5. **Start the Service**:
    Once configured, you can start the Radware Logging Agent using the systemd service:
    ```bash
    sudo systemctl start rla.service
