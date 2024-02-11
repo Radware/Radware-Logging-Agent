@@ -50,7 +50,7 @@ def verify_agent_config(agent_config):
     return True
 
 def verify_output_config(output_config):
-    supported_formats = ['cef', 'json', 'ndjson', 'leef']
+    supported_formats = ['cef', 'json', 'leef']
     if output_config['output_format'] not in supported_formats:
         logger.error(f"Unsupported output format: {output_config['output_format']}")
         return False

@@ -274,7 +274,7 @@ SAMPLE_WEBDDOS_EVENT_3 =  {
 
 EXAMPLE_TIME_FIELDS = {"time": "2024-01-30T07:25:46.912897474Z", "startTime":1706598020 , "endTime":1706599530000}
 TIME_FIELD_INPUT_TYPE = {"time" :"ISO8601_NS", "startTime": "epoch_ms", "endTime": "epoch_ms"}
-@pytest.mark.parametrize("output_format", ['json', 'ndjson', 'cef', 'leef'])
+@pytest.mark.parametrize("output_format", ['json', 'cef', 'leef'])
 def test_enrich_webddos_log_standard(output_format):
     format_options = {'unify_fields': True, 'time_format': 'epoch_ms_str'}
     log_type = 'webddos'
@@ -290,7 +290,7 @@ def test_enrich_webddos_log_standard(output_format):
         assert 'mitigation' not in enriched_event
         assert 'rps' not in enriched_event
     else:
-        # Fields should not be flattened for JSON and NDJSON formats
+        # Fields should not be flattened for JSON formats
         assert enriched_event.get('log_type') == log_type
 
         assert 'latestRealTimeSignature' in enriched_event

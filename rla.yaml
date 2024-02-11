@@ -9,7 +9,7 @@ general:
   log_file: '' # Path to the log file where the agent's internal logs will be written.
   output_directory: ''  # Directory to store temporary files during processing.
   log_directory: ''  # Directory for storing log files.
-  logging_levels: "ERROR"  # Logging level for the agent's internal logs. Options: "INFO", "WARNING", "DEBUG", "ERROR".
+  logging_levels: "INFO"  # Logging level for the agent's internal logs. Options: "INFO", "WARNING", "DEBUG", "ERROR".
 
 # AWS Simple Queue Service (SQS) Settings
 # ---------------------------------------
@@ -42,20 +42,20 @@ agents:
 # --------------------
 # Configures how logs are outputted after processing.
 output:
-  output_format: ''  # The format of the output logs. Options: 'cef', 'json', 'ndjson', 'leef'.
+  output_format: ''  # The format of the output logs. Options: 'cef', 'json', 'leef'.
   type: ''  # The transport protocol for sending logs. Options: 'http', 'https', 'tcp', 'udp', 'tls'.
   destination: ''  # Destination where logs are sent. Format varies based on 'type'.
 
 # Format-Specific Configurations
 # ------------------------------
-# Customizations for each output format: CEF, JSON, ndJSON, LEEF.
+# Customizations for each output format: CEF, JSON, LEEF.
 #
 # General Format Options:
 # - 'time_format': Defines the format for timestamps. Options:
-#   - 'ISO8601': ISO 8601 formatted date-time string.
 #   - 'epoch_ms_str': String representation of epoch time in milliseconds.
 #   - 'epoch_ms_int': Integer representation of epoch time in milliseconds.
 #   - 'MM dd yyyy HH:mm:ss': Custom formatted date-time string.
+#   - 'ISO8601': ISO 8601 formatted date-time string.
 # - 'severity_format' (only for CEF and LEEF): Defines the format for representing log severity levels. Options:
 #   - 1: Standard textual representations ("info", "low", "warning", "high", "critical").
 #   - 2: Descriptive textual representations ("Unknown", "Low", "Medium", "High", "Very-High").
@@ -66,37 +66,79 @@ formats:
     time_format: ""  # Time format for JSON logs
     unify_fields: true
   # Uncomment below sections as needed for other formats
-  ndjson:
-    time_format: "ISO8601"  # Time format for newline-delimited JSON logs
-    unify_fields: true
-  cef:
-    delimiter: "\n"  # Delimiter used to separate CEF events
-    time_format: "ISO8601"  # Time format for CEF logs
-    severity_format: 1
-    syslog_header:
-      generate_header: true  # Enable or disable the generation of syslog header
-      host: "product"  # Source of the host field in syslog header
-  leef:
-    delimiter: "\n"  # Delimiter used to separate LEEF events
-    time_format: "ISO8601"  # Time format for LEEF logs
-    severity_format: 1
-    syslog_header:
-      generate_header: true  # Enable or disable the generation of syslog header
-      host: "product"  # Source of the host field in syslog header
+  # cef:
+  #   delimiter: "\n"  # Delimiter used to separate CEF events
+  #   time_format: "MM dd yyyy HH:mm:ss"  # Time format for CEF logs
+  #   unify_fields: true
+  #   severity_format: 1
+  #   syslog_header:
+  #     generate_header: true  # Enable or disable the generation of syslog header
+  #     host: "product"  # Source of the host field in syslog header
+  # leef:
+  #   delimiter: "\n"  # Delimiter used to separate LEEF events
+  #   time_format: "MM dd yyyy HH:mm:ss"  # Time format for LEEF logs
+  #   unify_fields: true
+  #   severity_format: 1
+  #   syslog_header:
+  #     generate_header: true  # Enable or disable the generation of syslog header
+  #     host: "product"  # Source of the host field in syslog header
 
 # TLS Configuration
 # -----------------
 # Settings for secure TCP communication using TLS.
 tls:
   verify: false  # Whether to verify the server's SSL certificate.
-  ca_cert: "/path/to/ca_cert.pem"  # Path to the CA certificate file.
-  client_cert: "/path/to/client_cert.pem"  # Path to the client's SSL certificate.
-  client_key: "/path/to/client_key.pem"  # Path to the client's SSL key.
+  ca_cert: ""  # Path to the CA certificate file.
+  client_cert: ""  # Path to the client's SSL certificate.
+  client_key: ""  # Path to the client's SSL key.
 
 # HTTP/HTTPS Configuration
 # ------------------------
 # Settings specific to HTTP/HTTPS communication.
+# These settings allow for batch processing, authentication, and custom headers.
+
 http:
-  batch: false  # Whether to enable batch processing for HTTP.
+  # Whether to enable batch processing for HTTP. Batch processing groups multiple
+  # log events into a single HTTP request.
+  batch: true
+
+  # Authentication settings for HTTP communication. Supported authentication types
+  # are None, Basic, and Bearer. For Basic and Bearer, provide the required credentials.
+  # Uncomment and configure as needed based on your endpoint's authentication requirements.
+  # authentication:
+  #   auth_type: "none"  # Options: "none", "basic", "bearer". Use "none" for no authentication.
+  #   username: ""       # Username for Basic authentication. Required if auth_type is "basic".
+  #   password: ""       # Password for Basic authentication. Required if auth_type is "basic".
+  #   token: ""          # Token for Bearer authentication. Required if auth_type is "bearer".
+
+  # Custom headers to include in the HTTP request. Specify as key-value pairs.
+  # Uncomment and add custom headers as needed.
+  # custom_headers:
+  #   X-Custom-Header: "Value"
+  #   Another-Header: "Another Value"
+
+
 https:
-  batch: false  # Whether to enable batch processing for HTTPS.
+  # Whether to enable batch processing for HTTPs. Batch processing groups multiple
+  # log events into a single HTTPs request.
+  batch: false
+
+  # Secure Communication options
+  verify: false  # Whether to verify the server's SSL certificate.
+  ca_cert: ""  # Path to the CA certificate file.
+  client_cert: ""  # Path to the client's SSL certificate.
+  client_key: ""  # Path to the client's SSL key.
+
+  # Authentication settings for HTTPS communication.
+  # Uncomment and configure as needed.
+  # authentication:
+  #   auth_type: "none"  # Options: "none", "basic", "bearer".
+  #   username: ""       # Required for "basic" auth_type.
+  #   password: ""       # Required for "basic" auth_type.
+  #   token: ""          # Required for "bearer" auth_type.
+
+  # Custom headers for HTTPS requests.
+  # Uncomment and add custom headers as needed.
+  # custom_headers:
+  #   X-Secure-Header: "Secure Value"
+  #   Another-Secure-Header: "Another Secure Value"

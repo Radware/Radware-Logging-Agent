@@ -92,7 +92,7 @@ def test_enrich_csp_log_missing_fields():
     assert 'time' not in enriched_event or enriched_event['time'] == ""  # 'time' should not be present or empty
 
 # Test with different output formats
-@pytest.mark.parametrize("output_format", ['json', 'ndjson', 'cef', 'leef'])
+@pytest.mark.parametrize("output_format", ['json', 'cef', 'leef'])
 def test_enrich_csp_log_output_formats(output_format):
     log_type = 'csp'
     format_options = {'unify_fields': True, 'time_format': 'epoch_ms_str'}
@@ -115,15 +115,15 @@ def test_enrich_csp_log_output_formats(output_format):
         if 'urls' in enriched_log:
             assert isinstance(enriched_log['urls'], str), "urls should be a string in CEF/LEEF formats"
 
-    elif output_format in ['json', 'ndjson']:
+    elif output_format == "json":
         # Assert that if aggregatedUserAgent field is present then it is a list
         if 'aggregatedUserAgent' in enriched_log:
             assert isinstance(enriched_log['aggregatedUserAgent'],
-                              list), "aggregatedUserAgent should be a list in JSON/NDJSON formats"
+                              list), "aggregatedUserAgent should be a list in JSON formats"
 
         # Assert that if urls field is present then it is a list
         if 'urls' in enriched_log:
-            assert isinstance(enriched_log['urls'], list), "urls should be a list in JSON/NDJSON formats"
+            assert isinstance(enriched_log['urls'], list), "urls should be a list in JSON formats"
 
     # Define the test with parametrization for each time format
 @pytest.mark.parametrize("time_format", ['epoch_ms_str', 'epoch_ms_int', 'MM dd yyyy HH:mm:ss', 'ISO8601'])

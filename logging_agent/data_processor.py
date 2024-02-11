@@ -178,14 +178,18 @@ class DataProcessor:
         destination = self.config['output']['destination']
         port = self.config['output'].get('port', None)
         batch_mode = self.config[output_type].get('batch', False)
+        authentication = self.config[output_type].get('authentication', {})
+        custom_headers = self.config[output_type].get('custom_headers', {})
         delimiter = self.config['formats'][output_format].get('delimiter', '\n')
-        tls_config = self.config['tls'] if output_type == 'tls' else {}
+        tls_config = self.config[output_type] if output_type == 'tls' or output_type == 'https' else {}
         destination_config = {
             'destination': destination,
             'output_format': output_format,
             'output_type': output_type,
             'port': port,
             'batch_mode': batch_mode,
+            'authentication': authentication,
+            'custom_headers': custom_headers,
             'delimiter': delimiter,
             'tls_config': tls_config
         }

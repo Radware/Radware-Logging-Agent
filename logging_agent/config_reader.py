@@ -110,33 +110,56 @@ class Config:
         agent_config = self.config['agents'].get(agent_name, {})
         if agent_config:
             # Combine general and agent-specific settings
-            # combined_config = {}
-            # combined_config['general'] = self.config['general']
             combined_config = {**self.config['general'], **agent_config}
             combined_config['aws_credentials'] = self.config['aws_credentials']
             combined_config['output'] = self.config['output']
             combined_config['formats'] = self.config['formats']
 
-            # Apply default TLS settings
-            combined_config['tls'] = self.config.get('tls', {}).copy()
-            combined_config['tls'].setdefault('verify', False)
-            product = combined_config.get('product')
-            if product in supported_features['products']:
-                supported_log_types = supported_features[product]['supported_log_types']
-                combined_config['logs'] = combined_config.get('logs', {})
-                for log_type in supported_log_types:
-                    combined_config['logs'].setdefault(log_type, False)
+            # Default settings for TLS, HTTP, and HTTPS
+            tls_defaults = {'batch': False, 'verify': False, 'ca_cert': '', 'client_cert': '', 'client_key': ''}
+            http_defaults = {'batch': False, 'authentication': {'auth_type': 'none'}, 'custom_headers': {}}
+
+            # Apply TLS defaults for both tls and https options
+            for tls_option in ['tls', 'https']:
+                combined_config[tls_option] = combined_config.get(tls_option, {})
+                for key, default_value in tls_defaults.items():
+                    combined_config[tls_option].setdefault(key, default_value)
+
+            # Explicitly check and apply HTTP and HTTPS configurations
+            for http_option in ['http', 'https']:
+                # Initialize with existing config or an empty dictionary if not present
+                http_https_config = combined_config.get(http_option, {})
+
+                # Check and apply batch setting from self.config if present
+                if 'batch' in self.config.get(http_option, {}):
+                    batch_value = self.config[http_option]['batch']
+                else:
+                    # Apply default if not present in self.config
+                    batch_value = http_defaults['batch']
+                http_https_config['batch'] = batch_value
+
+                # Check and apply authentication and custom_headers, ensuring not to overwrite existing configs
+                http_https_config['authentication'] = http_https_config.get('authentication',
+                                                                            http_defaults['authentication'].copy())
+                http_https_config['custom_headers'] = http_https_config.get('custom_headers',
+                                                                            http_defaults['custom_headers'].copy())
+
+                # Update the combined_config with the updated http or https config
+                combined_config[http_option] = http_https_config
+
+            combined_config['tcp'] = {'batch': False}
+            combined_config['udp'] = {'batch': False}
+
+
+            # Ensure existing configurations are preserved, particularly for authentication and custom headers
+            # This step is crucial if there are predefined settings in the configuration file that should not be overridden
+
             # Apply default format settings based on the output format
             output_format = combined_config['output'].get('output_format')
             default_format_values = self.get_default_format_values()
             format_defaults = default_format_values.get(output_format, {})
             for key, value in format_defaults.items():
                 combined_config['formats'].setdefault(key, value)
-
-            # Apply default batch settings for all output types
-            for output_type in ['tcp', 'udp', 'tls', 'http', 'https']:
-                combined_config.setdefault(output_type, {})
-                combined_config[output_type].setdefault('batch', False)
 
             return combined_config
         return None
@@ -155,10 +178,6 @@ class Config:
                 }
             },
             'json': {
-                'time_format': "ISO8601",
-                'unify_fields': True
-            },
-            'ndjson': {
                 'time_format': "ISO8601",
                 'unify_fields': True
             },

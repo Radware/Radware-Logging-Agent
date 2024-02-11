@@ -76,7 +76,7 @@ class Transformer:
         enrichment_functions = getattr(self, f"{self.product}_enrichment_functions", {})
 
         # Add log type for specific formats
-        if self.output_format in ["ndjson", "json"]:
+        if self.output_format == 'json':
             event['log_type'] = log_type
 
         enrich_func = enrichment_functions.get(log_type)

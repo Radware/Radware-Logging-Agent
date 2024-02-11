@@ -1,6 +1,6 @@
 import logging
 import os
-from config_reader import Config  # Adjust import path based on your project structure
+from logging_agent.config_reader import Config  # Adjust import path based on your project structure
 
 # Check if we are in verification mode
 verify_mode = os.getenv('RLA_VERIFY_MODE', '0') == '1'

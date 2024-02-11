@@ -38,9 +38,7 @@ SAMPLE_ACCESS_METADATA = {
 # Test `unify_fields` flag and `output_format`
 @pytest.mark.parametrize("unify_fields, output_format", [
     (False, 'json'),
-    (False, 'ndjson'),
     (True, 'json'),
-    (True, 'ndjson'),
     (True, 'cef'),
     (True, 'leef')
 ])
@@ -53,7 +51,7 @@ def test_enrich_access_log_with_different_formats(unify_fields, output_format):
         assert 'cookie' not in enriched_event or enriched_event['cookie'] != "-"
         assert 'referrer' not in enriched_event or enriched_event['referrer'] != "-"
         assert 'country_code' not in enriched_event or enriched_event['country_code'] not in {"", "--"}
-    if output_format in ['json', 'ndjson']:
+    if output_format == 'json':
         assert 'log_type' in enriched_event
 
 # Mocking External Dependencies with Unexpected Returns
@@ -80,9 +78,9 @@ def test_enrich_access_log_with_exceptions_from_dependencies(mock_parse_request,
     assert enriched_event == {}
 
 
-# Test when `unify_fields` is False and `output_format` is 'json' or 'ndjson'
-@pytest.mark.parametrize("output_format", ['json', 'ndjson'])
-def test_enrich_access_log_unify_fields_false_json_ndjson(output_format):
+# Test when `unify_fields` is False and `output_format` is 'json'
+@pytest.mark.parametrize("output_format", ['json'])
+def test_enrich_access_log_unify_fields_false_json(output_format):
     format_options = {'unify_fields': False, 'time_format': 'epoch_ms_str'}
     enriched_event = enrich_access_log(SAMPLE_ACCESS_EVENT.copy(), format_options, output_format, SAMPLE_ACCESS_METADATA, 'access')
 

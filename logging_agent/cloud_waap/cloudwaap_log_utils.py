@@ -41,6 +41,36 @@ class CloudWAAPProcessor:
             return "Unknown"
 
     @staticmethod
+    def identify_application_id(key, log_type):
+        """
+        Identify and return specific parts of a Cloud WAAP log key based on the log type.
+
+        Args:
+            key (str): The S3 key or file name of the log.
+            log_type (str): The type of log, e.g., "Bot" or other specified types.
+
+        Returns:
+            str: The identified part of the log key (e.g., application ID if log_type is "Bot", or 'Unknown').
+        """
+        try:
+            # Default value in case of failure to identify
+            result = "Unknown"
+
+            # Split the key into parts
+            parts = key.split("/")
+
+            if parts and log_type == "Bot":
+                result = parts[-3]
+            else:
+                # For other types of logs, implement the logic as needed
+                pass
+
+            return result
+        except Exception as e:
+            logger.error(f"Error processing key '{key}' with log_type '{log_type}': {e}")
+            return "Unknown"
+
+    @staticmethod
     def parse_tenant_name(key):
         """
         Extract the tenant name from the S3 key.
@@ -258,7 +288,8 @@ class CloudWAAPProcessor:
                     "geoLocation.countryCode": "country_code",
                     "applicationId": "application_id",
                     "contractId": "contract_id",
-                    "tenant": "tenant_id"
+                    "tenant": "tenant_id",
+                    "owaspCategory2021": "owasp_category"
                 }
 
                 for original_key, new_key in mappings.items():
@@ -337,15 +368,17 @@ class CloudWAAPProcessor:
         - dict: A dictionary containing extracted metadata.
         """
         try:
+            if not key:
+                key = None
             tenant_name = application_name = None
             if product == "cloud_waap" and log_type != "Access":
                 tenant_name = CloudWAAPProcessor.parse_tenant_name(key)
                 application_name = CloudWAAPProcessor.parse_application_name(key)
 
-            return {"tenant_name": tenant_name, "application_name": application_name}
+            return {"tenant_name": tenant_name, "application_name": application_name, "key": key}
         except Exception as e:
             logger.error(f"Error extracting metadata: {e}")
-            return {"tenant_name": None, "application_name": None}
+            return {"tenant_name": None, "application_name": None, "key": key}
 
     @staticmethod
     def flatten_latest_realtime_signature(log_data):
@@ -388,7 +421,7 @@ class CloudWAAPProcessor:
         try:
             items = []
             for key, value in nested_dict.items():
-                new_key = f"{parent_key}_{key}" if parent_key else key
+                new_key = f"{parent_key}.{key}" if parent_key else key
                 if isinstance(value, dict):
                     items.extend(CloudWAAPProcessor.flatten_nested_fields(value, new_key).items())
                 else:
@@ -413,7 +446,7 @@ class CloudWAAPProcessor:
         try:
             for field in fields_to_flatten:
                 if field in log_data:
-                    flattened_field = CloudWAAPProcessor.flatten_nested_fields(log_data[field])
+                    flattened_field = CloudWAAPProcessor.flatten_nested_fields(log_data[field],field.rstrip('.'))
                     log_data.update(flattened_field)
                     del log_data[field]
                 else:
@@ -424,9 +457,9 @@ class CloudWAAPProcessor:
             return log_data
 
     @staticmethod
-    def flatten_fields(log, fields_to_flatten):
+    def flatten_csp_fields(log, fields_to_flatten):
         """
-        Flattens specified fields in the log into comma-separated strings.
+        Flattens specified fields in the log into semicolon-separated strings.
 
         Parameters:
         - log (dict): The log entry as a dictionary.
@@ -438,8 +471,41 @@ class CloudWAAPProcessor:
         try:
             for field in fields_to_flatten:
                 if field in log and isinstance(log[field], list):
-                    log[field] = ','.join(log[field])
+                    log[field] = ';'.join(log[field])
             return log
         except Exception as e:
             logger.error(f"Error flattening fields: {e}")
             return log
+
+    @staticmethod
+    def map_webddos_field_names(event):
+        """
+        Maps specific field names in the event to new names, verifying their existence before making any changes.
+
+        Parameters:
+        - event (dict): The event data to update.
+
+        Returns:
+        - dict: The event data with updated field names.
+        """
+        # Define the mapping of old field names to new field names
+        field_map = {
+            "detection.ApplicationBehavior.attackThreshold": "detection_attack_threshold",
+            "mitigation.totalRequests.received": "total_requests_received",
+            "mitigation.totalRequests.dropped": "total_requests_dropped",
+            "mitigation.averageValues": "average_values",
+            "mitigation.maximumValues": "maximum_values",
+            "rps.inbound": "rps_inbound",
+            "rps.blocked": "rps_blocked",
+            "rps.clean": "rps_clean",
+            "rps.attackThreshold": "rps_attack_threshold"
+        }
+
+        # Iterate over the mapping and update the event if the field exists
+        for old_key, new_key in field_map.items():
+            if old_key in event:
+                event[new_key] = event.pop(old_key)
+            else:
+                logger.error(f"Warning: Field '{old_key}' not found in event data")
+
+        return event

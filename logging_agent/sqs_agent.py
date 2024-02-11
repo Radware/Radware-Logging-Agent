@@ -138,14 +138,18 @@ class SQSAgent:
 
         self.poll_sqs_messages(self.processing_queue, self.stop_event)
 
+
     def stop(self):
-        """Stops the SQS agent processing."""
-        self.logger.debug(f"Stopping SQS Agent: {self.agent_config['name']}")
+        self.logger.info(f"Stopping SQSAgent: {self.agent_config['name']}")
+        self.stop_event.set()  # Signal the workers to stop
 
-        # Signal the workers to stop after finishing their current message
-        self.stop_event.set()
+        # Attempt a graceful shutdown with a timeout
+        shutdown_start_time = time.time()
+        shutdown_timeout = 60  # seconds
+        while time.time() - shutdown_start_time < shutdown_timeout:
+            if self.processing_queue.empty():
+                self.logger.info(f"SQSAgent {self.agent_config['name']} stopped successfully.")
+                return
+            time.sleep(0.5)  # Short sleep to allow threads to exit
 
-        # Wait until the processing queue is empty
-        self.processing_queue.join()
-
-        self.logger.debug(f"SQS Agent {self.agent_config['name']} stopped successfully.")
+        self.logger.warning(f"SQSAgent {self.agent_config['name']} shutdown timed out. Some tasks may not have completed.")

@@ -59,7 +59,7 @@ def test_enrich_ddos_log_missing_fields():
     assert 'source_ip' not in enriched_event  # 'source_ip' should not be present
 
 # Test with different output formats
-@pytest.mark.parametrize("output_format", ['json', 'ndjson', 'cef', 'leef'])
+@pytest.mark.parametrize("output_format", ['json', 'cef', 'leef'])
 def test_enrich_ddos_log_output_formats(output_format):
     format_options = {'unify_fields': True, 'time_format': 'epoch_ms_str'}
     log_type = 'ddos'

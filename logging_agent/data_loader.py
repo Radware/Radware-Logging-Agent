@@ -75,7 +75,7 @@ class DataLoader:
             else:
                 self.logger.error(f"Unsupported file format: {file_extension}")
                 return {"data": None, "metadata": {}}
-            return {"data": data, "metadata": {"file_path": download_path}}
+            return {"data": data, "metadata": {"file_path": download_path, "key": key}}
         except Exception as e:
             self.logger.error(f"Error processing file: {download_path}: {e}")
-            return {"data": None, "metadata": {"file_path": download_path}}
+            return {"data": None, "metadata": {"file_path": download_path, "key": key}}
