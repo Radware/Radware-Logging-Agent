@@ -1,4 +1,4 @@
-# Radware Logging Agent (RLA)
+# Radware Logging Agents (RLA)
 
 RLA is a log processing tool designed to streamline the integration of Radware products with Security Information and Event Management (SIEM) systems. In its first major release, RLA is focuses on robust support of Radware Cloud WAAP logs, utilizing the Cloud WAAP's capability to export security and access logs to an AWS S3 Bucket.
 
@@ -6,43 +6,120 @@ RLA is a log processing tool designed to streamline the integration of Radware p
 ## Features
 
 ### Log Ingestion
-- **Cloud WAAP Integration**: Ingests logs from Radware Cloud WAAP exported to AWS S3.
-- **Support for Multiple Log Types**: Handles various log types including Access, WAF, Bot, DDoS, and Web DDoS logs.
+- **Multi-Agent Architecture**: Supports multiple agents, each with distinct configurations for targeted log processing.
+- **Cloud WAAP Integration**: Efficiently ingests logs from Radware Cloud WAAP exported to AWS S3.
+- **Versatile Log Handling**: Capable of processing various log types including Access, WAF, Bot, DDoS, and Web DDoS.
 
 ### Log Processing and Conversion
-- **Format Conversion**: Converts logs to multiple formats such as JSON, ndJSON, CEF, and LEEF.
-- **Log Type Filtering**: Option to skip specific log types, allowing selective log ingestion.
+- **Dynamic Format Conversion**: Converts logs to multiple formats such as JSON, CEF, and LEEF, with customizable options.
+- **Selective Log Processing**: Provides the ability to filter and process specific log types, enhancing control over log ingestion.
 
 ### Log Enrichment
-- Provides various enrichments to logs for enhanced information and SIEM integration.
+- **Enhanced Information**: Adds valuable enrichments to logs, improving their utility and integration with SIEM systems.
 
-### Customization and Configuration
-- **Homogenization**: Optionally homogenizes log fields for consistency across different log types.
-- **Timestamp Format Customization**: Allows for the customization of timestamp formats in the output logs.
-- **Customizable Log Delimiter**: Supports setting custom delimiters for different output formats.
-- **Severity Format Customization**: Provides options to customize the format of severity levels in logs.
+### Customization and Flexibility
+- **Configurable Homogenization**: Optional normalization of log fields across different log types for consistency.
+- **Customizable Timestamp and Severity Formats**: Allows specific settings for timestamp and log severity formats in output logs.
+- **Adaptable Output Configurations**: Supports various output methods and customization for delimiters and other format-specific settings.
 
+# Configuration
 
-## Configuration
+## General Configuration Options
 
-Configure RLA through the `rla.yaml` file, which includes settings for AWS SQS integration, output formats, log types, and output methods.
+- **log_file**: Specify the path for the RLA's log file. This is where RLA will write its operational logs.
+- **output_directory**: Define the directory to store temporary files during log processing.
+- **log_directory**: Set the directory for storing RLA's log files.
+- **logging_levels**: Choose the logging level for RLA's internal logs. Options: `INFO`, `WARNING`, `DEBUG`, `ERROR`.
+
+## AWS Credentials
+
+Configure AWS credentials to allow RLA to interact with AWS services such as SQS and S3.
+
+- **access_key_id**: Your AWS Access Key ID for authentication.
+- **secret_access_key**: Your AWS Secret Access Key for authentication.
+- **region**: The AWS region where the SQS queue and S3 bucket are located.
+
+## Agent Configuration
+
+Define settings for each log collection agent.
+
+- **name**: Assign a unique name for each agent.
+- **type**: Define the type of log source. Currently, "sqs" is supported.
+- **num_worker_threads**: Set the number of worker threads for processing messages.
+- **product**: Specify the product type associated with this agent. Currently supports 'cloud_waap'.
+- **sqs_settings**:
+  - **queue_name**: The name of the SQS queue to poll for messages.
+  - **delete_on_failure**: Determine whether to delete messages from the queue if processing fails (true/false).
+- **logs**: Enable or disable specific log types for processing, such as `Access`, `WAF`, `Bot`, `DDoS`, `WebDDoS`, and `CSP`.
+
+## Output Configuration
+
+Configure how and where processed logs are sent.
+
+- **output_format**: Choose the format for the output logs. Supported formats: `json`, `cef`, `leef`.
+- **type**: Select the transport protocol for sending logs. Options: `http`, `https`, `tcp`, `udp`, `tls`.
+- **destination**: Specify the destination where logs are to be sent, including the port if necessary.
+
+## Format-Specific Configurations
+
+Customize output settings for each supported log format.
+
+### JSON Format Options
+
+- **time_format**: Choose the format for timestamps. Options include 'ISO8601', 'epoch_ms_str', 'epoch_ms_int', 'MM dd yyyy HH:mm:ss'.
+- **unify_fields**: Optionally normalize log fields across different log types for consistency (true/false).
+
+### CEF and LEEF Format Options
+
+- **delimiter**: Specify the delimiter used to separate events (commonly "\n").
+- **time_format** and **severity_format**: Customize the representation of timestamps and severity levels in the logs.
+- **syslog_header**: Configure the generation and content of syslog headers, specifying the source of the host field (`product`, `application`, `tenant`).
+
+## TLS Configuration
+
+Settings for secure TCP communication using TLS.
+
+- **verify**: Whether to verify the server's SSL certificate (true/false).
+- **ca_cert**: Path to the CA certificate file.
+- **client_cert**: Path to the client's SSL certificate.
+- **client_key**: Path to the client's SSL key.
+
+## HTTP/HTTPS Configuration
+
+Customize settings for log transmission over HTTP or HTTPS, including batch processing, authentication, and custom headers.
+
+- **batch**: Enable or disable batch processing. When true, multiple log events are grouped into a single HTTP request.
+- **authentication**: Specify authentication details for secure endpoint access. Supported methods: `none`, `basic`, `bearer`.
+- **custom_headers**: Define additional headers to be included in the HTTP request.
+
+For detailed explanations and additional configuration options, refer to the official RLA documentation or support resources.
 
 ### Sample Configuration
 ```yaml
-sqs_access_key_id: 'your_access_key'
-sqs_secret_access_key: 'your_secret_key'
-sqs_region: 'your_region'
-sqs_name: 'your_queue_name'
-output_format: 'json'  # Supports 'json', 'ndjson', 'cef', 'leef'
-logs:
-  cloud_waap:
-    Access: true
-    WAF: true
-    Bot: true
-    DDoS: true
-    WebDDoS: true
+aws_credentials:
+  access_key_id: 'your_access_key'
+  secret_access_key: 'your_secret_key'
+  region: 'your_region'
+
+agents:
+  - name: "cloud_waap"
+    type: "sqs"
+    num_worker_threads: 5
+    product: "cloud_waap"
+    sqs_settings:
+      queue_name: 'your_sqs_queue_name'
+      delete_on_failure: false
+    logs:
+      Access: true
+      WAF: true
+      Bot: true
+      DDoS: true
+      WebDDoS: true
+      CSP: false
+
 output:
-  type: 'tcp'  # Options: 'http', 'https', 'udp', 'tcp', 'tls'
+  output_format: 'json'  # Supports 'json', 'cef', 'leef'
+  type: 'tcp'
   destination: 'your_destination_address'
 ```
 
@@ -59,8 +136,9 @@ To install the Radware Logging Agent on a Linux system, follow these steps:
 2. **Run the Installation Script**:
    The repository includes a script setup_rla.sh which automates the installation process:
    ```bash
-   chmod +x setup_rla.sh
-   ./setup_rla.sh
+   cd rla 
+   chmod +x install_rla.sh
+   sudo ./install_rla.sh
    ```
    Follow the instructions provided by the script. It will guide you through installing Python 3.8 or higher, pip3, and other necessary components.
 3. **Configure rla.yaml**:

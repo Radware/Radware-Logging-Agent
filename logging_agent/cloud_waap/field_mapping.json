@@ -8,8 +8,8 @@
           "product": "Cloud WAAP",
           "version": "1.0",
           "log_type": "Access",
-          "title": "Cloud WAAP Access Log",
-          "severity": "Info"
+          "title": "Access Log",
+          "severity": "fromlog"
         },
         "static_mapping": {
           "time": "rt",
@@ -39,7 +39,7 @@
           "log_type": "Access"
         },
         "static_mapping": {
-          "time": "devTime",
+          "time": "eventTime",
           "action": "action",
           "host": "dhost",
           "source_ip": "src",
@@ -52,6 +52,7 @@
           "http_method": "method",
           "http_bytes_in": "bytesIn",
           "http_bytes_out": "bytesOut",
+          "severity": "sev",
           "user_agent": "userAgent",
           "referrer": "referrer",
           "cookie": "cookie",
@@ -67,7 +68,7 @@
           "product": "Cloud WAAP",
           "version": "1.0",
           "log_type": "WAF",
-          "title": "Cloud WAAP WAF Log",
+          "title": "fromlog",
           "severity": "fromlog"
       },
       "static_mapping": {
@@ -83,9 +84,10 @@
           "request": "request",
           "uri": "uri",
           "reason": "reason",
+          "category": "cat",
+          "user_agent": "requestClientApplication",
           "referrer": "requestContext",
-          "cookie": "requestCookies",
-          "user_agent": "requestClientApplication"
+          "cookie": "requestCookies"
        }
       },
       "leef": {
@@ -107,11 +109,14 @@
           "protocol": "proto",
           "http_method": "method",
           "request": "request",
+          "uri": "uri",
+          "name": "name",
           "reason": "reason",
+          "category": "cat",
+          "severity": "sev",
           "referrer": "referrer",
           "cookie": "cookie",
-          "user_agent": "userAgent",
-          "severity": "sev"
+          "user_agent": "userAgent"
        }
       }
     },
@@ -123,19 +128,21 @@
           "product": "Cloud WAAP",
           "version": "1.0",
           "log_type": "Bot",
-          "title": "Cloud WAAP Bot Log",
-          "severity": "Info"
+          "title": "fromlog",
+          "severity": "fromlog"
         },
         "static_mapping": {
           "time": "rt",
           "action": "act",
           "host": "dhost",
-          "uri": "uri",
-          "request": "request",
           "source_ip": "src",
+          "request": "request",
+          "uri": "uri",
           "reason": "reason",
-          "referrer": "requestContext",
-          "user_agent": "requestClientApplication"
+          "category": "cat",
+          "user_agent": "requestClientApplication",
+          "referrer": "requestContext"
+
         }
       },
       "leef": {
@@ -150,12 +157,15 @@
           "time": "eventTime",
           "action": "action",
           "host": "dhost",
-          "uri": "uri",
-          "request": "request",
           "source_ip": "src",
+          "request": "request",
+          "uri": "uri",
+          "name": "name",
           "reason": "reason",
-          "referrer": "referrer",
-          "user_agent": "userAgent"
+          "category": "cat",
+          "severity": "sev",
+          "user_agent": "userAgent",
+          "referrer": "referrer"
         }
       }
     },
@@ -167,8 +177,8 @@
         "product": "CloudWAAP",
         "version": "1.0",
         "log_type": "DDoS",
-        "title": "Cloud WAAP DDoS Log",
-        "severity": "Info"
+        "title": "fromlog",
+        "severity": "fromlog"
       },
       "static_mapping": {
         "time": "rt",
@@ -178,7 +188,8 @@
         "source_port": "spt",
         "destination_port": "dpt",
         "protocol": "app",
-        "reason": "reason"
+        "reason": "reason",
+        "category": "cat"
       }
     },
       "leef": {
@@ -197,9 +208,12 @@
         "source_port": "srcPort",
         "destination_port": "dstPort",
         "protocol": "proto",
-        "reason":"reason"
+        "name": "name",
+        "reason":"reason",
+        "category": "cat",
+        "severity": "sev"
+        }
       }
-    }
     },
     "WebDDoS": {
       "cef": {
@@ -209,30 +223,77 @@
           "product": "Cloud WAAP",
           "version": "1.0",
           "log_type": "WebDDoS",
-          "title": "Cloud WAAP WebDDoS log",
-          "severity": "Critical"
+          "title": "fromlog",
+          "severity": "fromlog"
         },
         "static_mapping": {
+          "time": "rt",
           "action": "act",
           "host": "dhost",
-          "currentTimestamp": "rt",
+          "reason": "reason",
+          "category": "category",
           "startTime": "start",
           "endTime": "end"
         }
       },
       "leef": {
         "prefix": "rdwrCld",
-      "header": {
-        "vendor": "Radware",
-        "product": "Cloud WAAP",
-        "version": "1.0",
-        "log_type": "WebDDoS"
-      },
+        "header": {
+          "vendor": "Radware",
+          "product": "Cloud WAAP",
+          "version": "1.0",
+          "log_type": "WebDDoS"
+        },
         "static_mapping": {
+          "time": "eventTime",
           "action": "action",
           "host": "dhost",
-          "currentTimestamp": "eventTime",
-          "severity": "sev"
+          "name": "name",
+          "reason": "reason",
+          "category": "cat",
+          "severity": "sev",
+          "startTime": "startTime",
+          "endTime": "endTime"
+        }
+      }
+    },
+    "CSP": {
+      "cef": {
+        "prefix": "rdwrCld",
+        "header": {
+          "vendor": "Radware",
+          "product": "Cloud WAAP",
+          "version": "1.0",
+          "log_type": "CSP",
+          "title": "fromlog",
+          "severity": "fromlog"
+        },
+        "static_mapping": {
+          "time": "rt",
+          "action": "act",
+          "host": "dhost",
+          "reason": "reason",
+          "category": "category",
+          "count": "cnt"
+        }
+      },
+      "leef": {
+        "prefix": "rdwrCld",
+        "header": {
+          "vendor": "Radware",
+          "product": "Cloud WAAP",
+          "version": "1.0",
+          "log_type": "WebDDoS"
+        },
+        "static_mapping": {
+          "time": "eventTime",
+          "action": "action",
+          "host": "dhost",
+          "name": "name",
+          "reason": "reason",
+          "category": "category",
+          "severity": "sev",
+          "count": "cnt"
         }
       }
     }

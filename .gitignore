@@ -1,5 +1,6 @@
 # Ignore Python bytecode directories
 **/__pycache__/
+**/.pytest_cache/
 
 # Ignore JetBrains IDE settings folder
 .idea/
@@ -10,4 +11,8 @@ env/
 tmp/
 
 # Ignore specific environment variable configuration file
-/env_var_config.py
+/clean_rla.yaml
+/dev_rla.yaml
+/future_rla.yaml
+/far_future_rla.yaml
+/todo.txt

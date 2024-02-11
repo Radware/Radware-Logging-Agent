@@ -1,4 +1,7 @@
 import requests
+from requests.adapters import HTTPAdapter
+from requests.auth import HTTPBasicAuth
+from urllib3.util.retry import Retry
 import json
 import socket
 import ssl
@@ -25,47 +28,66 @@ class Sender:
 
     @staticmethod
     def send_http(data, destination_config):
-        """
-        Send data to the specified HTTP destination.
-
-        :param data: The data to send. Could be a list of transformed events or a single event.
-        :param destination_config: Configuration containing destination, output_format, and batch mode.
-        """
         destination = destination_config['destination']
         port = destination_config.get('port')
         output_format = destination_config.get('output_format', 'json')
         batch_mode = destination_config.get('batch_mode', False)
+        output_type = destination_config['output_type']  # 'http' or 'https'
+        authentication = destination_config.get('authentication', {})
+        custom_headers = destination_config.get('custom_headers', {})
+        tls_config = destination_config.get('tls_config', {})
 
-        # Append port to the destination URL if not already present
-        if ':' not in destination.split('//')[-1]:
-            destination = f"{destination}:{port}"
 
-        # Determine the appropriate header based on the output format
-        headers = {'Content-Type': 'application/json'}
-        if output_format == 'ndjson':
-            headers['Content-Type'] = 'application/x-ndjson'
+        # Ensure destination URL starts with http:// or https://
+        if not destination.startswith("http://") and not destination.startswith("https://"):
+            destination = f"{output_type}://{destination}"  # Prepend with output_type
+            if port:
+                destination += f":{port}"
 
-        if batch_mode:
-            try:
-                batch_data = '\n'.join(data) if output_format == 'ndjson' else json.dumps(data)
-                response = requests.post(destination, data=batch_data, headers=headers)
+        if output_format == 'json':
+            headers = {'Content-Type': 'application/json'}
+        headers.update(custom_headers)
+
+
+        session = requests.Session()
+        # Setup SSL/TLS for HTTPS if specified in destination_config
+        if destination.startswith("https://"):
+            if tls_config.get('verify', False):
+                session.verify = tls_config.get('ca_cert')  # Path to CA cert
+            else:
+                session.verify = False  # Disable SSL verification
+
+            # Load client certificate and key if provided
+            if 'client_cert' in tls_config and 'client_key' in tls_config:
+                session.cert = (tls_config['client_cert'], tls_config['client_key'])
+
+
+        retries = Retry(total=3, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
+        adapter = HTTPAdapter(max_retries=retries)
+        session.mount('https://', adapter) if destination.startswith("https://") else session.mount('http://', adapter)
+
+
+        auth = None
+        if authentication.get('auth_type') == 'basic':
+            auth = HTTPBasicAuth(authentication.get('username'), authentication.get('password'))
+        elif authentication.get('auth_type') == 'bearer':
+            headers['Authorization'] = f"Bearer {authentication.get('token')}"
+
+        try:
+            if batch_mode:
+                batch_data = data
+                response = session.post(destination, data=batch_data, headers=headers, auth=auth)
                 response.raise_for_status()  # Raise an error for bad status
                 logger.info(f"Batch data sent successfully to {destination}")
-                return True
-            except Exception as e:
-                logger.error(f"Failed to send batch data to {destination}: {e}")
-                return False
-        else:
-            for event in data:
-                try:
-                    response = requests.post(destination, data=json.dumps(event), headers=headers)
+            else:
+                for event in data:
+                    response = session.post(destination, data=event, headers=headers, auth=auth)
                     response.raise_for_status()  # Raise an error for bad status
-                except Exception as e:
-                    logger.error(f"Failed to send event to {destination}: {e}")
-                    return False
-            logger.info(f"All events sent successfully to {destination}")
+                logger.info(f"All events sent successfully to {destination}")
             return True
-
+        except Exception as e:
+            logger.error(f"Failed to send data to {destination}: {e}")
+            return False
     @staticmethod
     def send_tcp(data, destination_config):
         """
@@ -87,7 +109,7 @@ class Sender:
 
             for event in data:
                 # Check the format and prepare the event for sending
-                if output_format.lower() in ["ndjson", "json", "cef", "leef"]:
+                if output_format.lower() in ["json", "cef", "leef"]:
                     event_str = event + delimiter
                 else:
                     logger.error(f"Unsupported output format: {output_format}")
@@ -127,7 +149,7 @@ class Sender:
 
             for event in data:
                 # Check the format and prepare the event for sending
-                if output_format.lower() in ["ndjson", "json", "cef", "leef"]:
+                if output_format.lower() in ["json", "cef", "leef"]:
                     event_str = event + delimiter
                 else:
                     logger.error(f"Unsupported output format: {output_format}")
@@ -165,18 +187,25 @@ class Sender:
             raw_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             raw_sock.connect((destination, port))
 
-            # Wrap the socket with SSL for TLS
-            if tls_config.get('verify', False) and 'ca_cert' in tls_config:
-                context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH, cafile=tls_config['ca_cert'])
+            # Initialize SSL context
+            if tls_config.get('verify', False):
+                context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+                if 'ca_cert' in tls_config:
+                    context.load_verify_locations(cafile=tls_config['ca_cert'])
             else:
                 context = ssl._create_unverified_context()
 
+            # Load client certificate and key if provided
+            if 'client_cert' in tls_config and 'client_key' in tls_config and tls_config['client_cert'] and tls_config['client_key']:
+                context.load_cert_chain(certfile=tls_config['client_cert'], keyfile=tls_config['client_key'])
+
+            # Wrap the socket with SSL for TLS
             tls_sock = context.wrap_socket(raw_sock, server_hostname=destination)
             logger.debug(f"Connected to {destination}:{port} over TLS")
 
             for event in data:
                 # Prepare the event for sending
-                if output_format.lower() in ["ndjson", "json", "cef", "leef"]:
+                if output_format.lower() in ["json", "cef", "leef"]:
                     event_str = event + delimiter
                 else:
                     logger.error(f"Unsupported output format: {output_format}")

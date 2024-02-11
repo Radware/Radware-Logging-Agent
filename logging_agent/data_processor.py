@@ -1,142 +1,201 @@
-import os
-from .downloader import Downloader
-from .transformer import Transformer
-from .sender import Sender
-from .utility import Utility
-from .logging_config import get_logger
+from logging_agent.app_info import supported_features
+from logging_agent.data_loader import DataLoader
+from logging_agent.transformer import Transformer
+from logging_agent.sender import Sender
+from logging_agent.utility import Utility
+from logging_agent.logging_config import get_logger
 from logging_agent.cloud_waap import CloudWAAPProcessor
 import datetime
 
 
-# Create a logger for this module
-logger = get_logger('data_processor')
+class DataProcessor:
+    def __init__(self, config):
+        """
+        Initializes the DataProcessor with configuration settings.
+
+        Args:
+            config (dict): Configuration settings for the data processor.
+        """
+        self.config = config
+        self.logger = get_logger('data_processor')
+
+    def process_data(self, input_fields):
+        """
+        Processes the input data based on the source type and product.
+
+        Args:
+            input_fields (dict): Contains fields specific to the input type.
+
+        Returns:
+            bool: True if the processing is successful, False otherwise.
+        """
+        file_size = input_fields.get('expected_size', 'Unknown size')
+        start_time = datetime.datetime.now()
+        self.logger.info(f"Starting processing. File size: {file_size} bytes")
+
+        input_type = self.config.get('type')  # Retrieve input type from config
+        product = self.config.get('product')  # Retrieve product from config
+
+        load_start_time = datetime.datetime.now()
+        data_loader = DataLoader(self.config)
+        loaded_data = data_loader.load_data(input_type, input_fields)
+        load_end_time = datetime.datetime.now()
+        self.logger.info(f"Loading completed. Time taken: {load_end_time - load_start_time}. File size: {file_size} bytes")
+
+        data = loaded_data.get('data', None)
+        metadata = loaded_data.get('metadata', {})
+        if data is None:
+            self.logger.error(f"Failed to load data for input type: {input_type}")
+            return False
+
+        log_type = self.identify_product_log_type(input_fields, input_type, product)
+        # Check if the log type is supported for the product
+        if log_type not in supported_features[product]["supported_log_types"]:
+            self.logger.info(f"Skipping unsupported log type {log_type} for product {product}.")
+            return True  # Successfully handled by skipping
+
+        # Check if the log type should be processed based on configuration
+        if not self.config.get('logs', {}).get(log_type, False):
+            self.logger.info(f"Skipping log type {log_type} as per configuration.")
+            return True  # Successfully handled by skipping
+
+        data_fields = self.gather_data_fields(input_fields, input_type, log_type, product)
+        transform_start_time = datetime.datetime.now()
+        transformed_data = self.transform_data(data, data_fields)
+        transform_end_time = datetime.datetime.now()
+        self.logger.info(f"Transformation completed. Time taken: {transform_end_time - transform_start_time}. File size: {file_size} bytes")
+
+        if not transformed_data:
+            self.logger.error("Failed to transform data")
+            return False
+        send_start_time = datetime.datetime.now()
+
+        success = self.finalize_and_send(transformed_data)
+        send_end_time = datetime.datetime.now()
+        self.logger.info(f"Sending completed. Time taken: {send_end_time - send_start_time}. File size: {file_size} bytes")
 
 
+        # Cleanup
+        file_path = metadata.get('file_path')
+        if file_path:
+            Utility.cleanup(file_path)
+
+        # Cleanup and final logging
+        end_time = datetime.datetime.now()
+        self.logger.info(f"Total processing time: {end_time - start_time}. File size: {file_size} bytes")
+
+        #self.logger.info(f"Task completed. Time taken: {end_time - start_time}")
+        return success
+
+    def identify_product_log_type(self, log_info, input_type, product):
+        """
+        Identifies the log type based on product and input type.
+
+        Args:
+            log_info (dict): Information about the log.
+            input_type (str): Type of the input (e.g., 'sqs').
+            product (str): The product type being processed.
+
+        Returns:
+            str: Identified log type.
+        """
+        log_type = ""
+        if input_type == "sqs" and product == "cloud_waap":
+            key = log_info.get('key', '')
+            log_type = CloudWAAPProcessor.identify_log_type(key)
+        return log_type
+
+    def gather_data_fields(self, input_fields, input_type, log_type, product):
+        """
+        Gathers additional data fields required for transformation.
+
+        Args:
+            input_fields (dict): Input fields specific to the data source.
+            input_type (str): Type of the input (e.g., 'sqs').
+            log_type (str): Type of the log identified.
+            product (str): The product type being processed.
+
+        Returns:
+            dict: Data fields collected for transformation.
+        """
+        data_fields = {}
+        if input_type == "sqs" and product == "cloud_waap":
+            key = input_fields.get('key')
+            metadata = CloudWAAPProcessor.extract_metadata(key, product, log_type)
+            data_fields = {
+                'key': key,
+                'input_type': input_type,
+                'log_type': log_type,
+                'product': product,
+                'metadata': metadata
+            }
+        return data_fields
+
+    def transform_data(self, data, data_fields):
+        """
+        Transforms the data according to specified configurations and mappings.
+
+        Args:
+            data (dict): The data to be transformed.
+            data_fields (dict): Additional data fields for transformation.
+            product (str): Product name
+
+        Returns:
+            object: Transformed data.
+        """
+        output_type = self.config['output']['type']
+        batch_mode = self.config[output_type].get('batch', False)
+        output_format = self.config['output']['output_format']
+        format_options = self.config['formats'].get(output_format, {})
 
 
-def process_data(input_fields, product, field_mappings, config):
-    """
-    Processes the input data based on the source type and product.
-
-    Args:
-        input_fields (dict): Contains fields specific to the input type.
-        product (str): The product type being processed.
-        field_mappings (dict): Field mappings for data transformation.
-        config (dict): The configuration settings.
-
-    Returns:
-        bool: True if the processing is successful, False otherwise.
-    """
-    # General configuration fields
-    input_type = input_fields.get('input_type', '')
-    output_directory = config.get('output_directory', '/tmp')
-    output_format = config.get('output_format', '').lower()
-    format_options = config.get('output', {}).get(output_format, {})
-    delimiter = format_options.get('delimiter', '\n')
-    downloader = Downloader(config)
-
-    # Batch mode configuration for HTTP/HTTPS
-    output_config = config.get('output', {})
-    http_config = output_config.get('http', {})
-    https_config = output_config.get('https', {})
-    batch_mode = http_config.get('batch', https_config.get('batch', False))
-
-    # Record time for performance messurement
-    start_time = datetime.datetime.now()  # Record the start time
+        # Instantiate Transformer with the specific product and output format
+        transformer = Transformer(self.config)
 
 
-    # Process data for SQS input type
-    if input_type == "sqs":
-        bucket = input_fields.get('bucket', '')
-        key = input_fields.get('key', '')
-        expected_size = input_fields.get('expected_size', '')
-        logger.debug(f"Initiating processing for file: {key} from bucket: {bucket}")
-        download_path = os.path.join(output_directory, os.path.basename(key))
+        transformed_data = transformer.transform_content(
+            data=data,
+            data_fields=data_fields,
+            batch_mode=batch_mode,
+            format_options=format_options
+        )
+
+        return transformed_data
 
 
-    # Processing logic for Cloud WAAP product type with Input Type SQS
-    if product == "cloud_waap" and input_type == "sqs" :
-        log_type = CloudWAAPProcessor.identify_log_type(key)
-        if not config['logs'][product][log_type]:
-            return True
+    def finalize_and_send(self, transformed_data):
+        """
+        Finalizes the process by sending the transformed data.
 
-        # Check if file already exists and decide whether to download
-        download_required = True
-        if os.path.exists(download_path):
-            actual_size = os.path.getsize(download_path)
-            if actual_size >= expected_size:
-                logger.info(f"File already exists and is complete: {key}")
-                download_required = False
-            else:
-                # TODO partial might have different file extenstion and if partial is found it should be deleated and redownloaded
-                logger.info(f"Partial file detected. Redownloading: {key}")
+        Args:
+            transformed_data (object): The data after transformation.
 
-        # Download the file from S3 if required
-        if download_required:
-            logger.debug(f"Downloading file: {key}")
-            if not downloader.download_from_s3(bucket, key, download_path):
-                logger.error(f"Failed to download {key} from bucket {bucket}")
-                return False
-            logger.debug(f"File downloaded successfully: {key}")
-
-        # Prepare data for transformation
-        data_fields = {
-            "file_path": download_path,
-            "key": key,
-            "log_type": log_type
-        }
-
-    # Transform the data
-    transformed_data = Transformer.load_and_transform(
-        input_type=input_type,
-        data_fields=data_fields,
-        output_format=config['output_format'],
-        field_mappings=field_mappings,
-        product=product,
-        batch_mode=batch_mode,
-        format_options=format_options
-    )
-
-    if transformed_data:
-        logger.debug(f"Transformation successful for file: {key}")
-
-        # Prepare destination configuration
-        output_type = config['output']['type']
-        destination = config['output']['destination']
-        port = config['output'][output_type].get('port', None)
-        batch_mode = config['output'].get('batch', False)
-        delimiter = config['output'].get('delimiter', '\n')
-
+        Returns:
+            bool: True if the data was successfully sent, False otherwise.
+        """
+        output_format = self.config['output']['output_format']
+        output_type = self.config['output']['type']
+        destination = self.config['output']['destination']
+        port = self.config['output'].get('port', None)
+        batch_mode = self.config[output_type].get('batch', False)
+        authentication = self.config[output_type].get('authentication', {})
+        custom_headers = self.config[output_type].get('custom_headers', {})
+        delimiter = self.config['formats'][output_format].get('delimiter', '\n')
+        tls_config = self.config[output_type] if output_type == 'tls' or output_type == 'https' else {}
         destination_config = {
             'destination': destination,
-            'output_format': config['output_format'],
+            'output_format': output_format,
             'output_type': output_type,
             'port': port,
             'batch_mode': batch_mode,
+            'authentication': authentication,
+            'custom_headers': custom_headers,
             'delimiter': delimiter,
-            'tls_config': config['output'].get('tls', {}) if output_type == 'tls' else {}
+            'tls_config': tls_config
         }
 
-        # Unify sending process
         try:
-            success = Sender.send_data(transformed_data, destination_config)
-            if success:
-                logger.info(f"Data successfully sent to {destination_config['destination']}")
-            else:
-                logger.error("Failed to send transformed data")
+            return Sender.send_data(transformed_data, destination_config)
         except Exception as e:
-            logger.error(f"Error during data sending process: {e}")
-            success = False
-
-    else:
-        logger.error(f"Failed to transform data from file: {download_path}")
-        success = False
-
-        # Cleanup and logging ...
-    Utility.cleanup(download_path)
-    logger.debug(f"Cleanup completed for file: {key}")
-    end_time = datetime.datetime.now()
-    time_taken = end_time - start_time
-    logger.info(f"Task completed. Time taken: {time_taken}, File size: {expected_size} bytes")
-
-    return success
+            self.logger.error(f"Error during data sending process: {e}")
+            return False
