@@ -6,7 +6,7 @@
 # ----------------
 # These settings are applicable to the entire operation of the agent.
 general:
-  log_file: '' # Path to the log file where the agent's internal logs will be written.
+  log_file: '' # name of the log file where the agent's internal logs will be written.
   output_directory: ''  # Directory to store temporary files during processing.
   log_directory: ''  # Directory for storing log files.
   logging_levels: "INFO"  # Logging level for the agent's internal logs. Options: "INFO", "WARNING", "DEBUG", "ERROR".

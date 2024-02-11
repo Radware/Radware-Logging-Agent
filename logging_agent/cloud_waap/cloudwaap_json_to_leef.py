@@ -42,22 +42,22 @@ def construct_leef_syslog_header(format_options, log):
     Returns:
         str: Constructed syslog header.
     """
-    try:
-        syslog_header = ""
-        syslog_headers = format_options.get('syslog_header', {})
-        time_format_option = format_options.get('time_format', '%Y-%m-%dT%H:%M:%S%z')
 
-        if time_format_option == 'epoch_ms_str':
-            time_format = '%s%f'
-        elif time_format_option == 'epoch_ms_int':
-            time_format = '%s'
+    syslog_header = ""
+    syslog_headers = format_options.get('syslog_header', {})
+    time_format_option = format_options.get('time_format', '%Y-%m-%dT%H:%M:%S%z')
+    try:
+        current_time = datetime.datetime.now()
+        if time_format_option == 'epoch_ms_str' or time_format_option == 'epoch_ms_int':
+            time_data = str(int(current_time.timestamp() * 1000))
         elif time_format_option == 'MM dd yyyy HH:mm:ss':
             time_format = '%m %d %Y %H:%M:%S'
+            time_data = current_time.strftime(time_format)
         else:
-            time_format = '%Y-%m-%dT%H:%M:%S%z'
+            time_format = '%Y-%m-%dT%H:%M:%S.%fZ'
+            time_data = current_time.strftime(time_format)
 
-        current_time = datetime.datetime.now()
-        syslog_header += current_time.strftime(time_format) + " "
+        syslog_header += time_data + " "
 
         host = "Radware-CloudWAAP"
         if syslog_headers and 'host' in syslog_headers:

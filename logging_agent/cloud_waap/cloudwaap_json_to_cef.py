@@ -52,22 +52,18 @@ def construct_cef_syslog_header(format_options, log):
     time_format_option = format_options.get('time_format', '%Y-%m-%dT%H:%M:%S%z')
 
     try:
-        # Determine the time format for the syslog header
-        if time_format_option == 'epoch_ms_str':
-            # Epoch time in milliseconds as a string
-            time_format = '%s%f'
-        elif time_format_option == 'epoch_ms_int':
-            # Epoch time in milliseconds as an integer
-            time_format = '%s'
-        elif time_format_option == 'MM dd yyyy HH:mm:ss':
-            # Custom format
-            time_format = '%m %d %Y %H:%M:%S'
-        else:
-            # ISO 8601 format or any other custom format specified
-            time_format = '%Y-%m-%dT%H:%M:%S%z'
-
         current_time = datetime.datetime.now()
-        syslog_header += current_time.strftime(time_format) + " "
+        if time_format_option == 'epoch_ms_str' or time_format_option == 'epoch_ms_int':
+            int_time = int(current_time.timestamp() * 1000)
+            time_data = str(int_time)
+        elif time_format_option == 'MM dd yyyy HH:mm:ss':
+            time_format = '%m %d %Y %H:%M:%S'
+            time_data = current_time.strftime(time_format)
+        else:
+            time_format = '%Y-%m-%dT%H:%M:%S.%fZ'
+            time_data = current_time.strftime(time_format)
+
+        syslog_header += time_data + " "
 
         # Handle the host part of the syslog header
         host = "CloudWAAP"  # Default host
@@ -142,14 +138,18 @@ def sanitize_header_value(value):
 def sanitize_extended_field_value(value):
     """
     Sanitize values for CEF extended fields by escaping backslashes, equals signs, carriage returns, and new lines.
+    Also, strips any leading whitespace from the input value.
 
     Args:
         value (str): The extended field value to be sanitized.
 
     Returns:
-        str: A sanitized string safe for CEF extended fields.
+        str: A sanitized string safe for CEF extended fields, with leading whitespace removed.
     """
-    sanitized_value = sanitize_header_value(value)  # Use the same base sanitization as header
+    sanitized_value = sanitize_header_value(value)
+    # Strip leading whitespace
+    sanitized_value = sanitized_value.lstrip()
+    # Additional escape for equals sign
     sanitized_value = sanitized_value.replace('=', '\\=')  # Additional escape for equals sign
     return sanitized_value
 
@@ -290,6 +290,13 @@ def json_to_cef(log, log_type, product, field_mappings, format_options):
             if is_value_valid(value):
                 sanitized_value = sanitize_extended_field_value(value)
                 extensions.append(f"{cef_key}={sanitized_value}")
+
+        # Remove redundant fields
+        if 'severity' in log:
+            del log['severity']
+
+        if 'name' in log:
+            del log['name']
 
         # Process remaining fields for dynamic mapping
         for json_key, value in log.items():

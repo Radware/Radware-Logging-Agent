@@ -100,6 +100,8 @@ def enrich_waf_log(event, format_options, output_format, metadata, log_type):
                 event['source_port'] = event.pop('sourcePort')
             if 'destinationPort' in event:
                 event['destination_port'] = event.pop('destinationPort')
+            if 'destinationIp' in event:
+                del event['destinationIp']
 
             # Homogenize other fields
             for key, new_key in {'RuleID': 'ruleId', 'URI': 'uri', 'title': 'name', 'violationCategory': 'category',
@@ -320,8 +322,11 @@ def enrich_webddos_log(event, format_options, output_format, metadata, log_type)
             # Combine 'attackVector' into 'reason', 'name', and 'category'
             if 'attackVector' in event:
                 attack_vector = event.pop('attackVector')
-                event.update({'reason': f"WebDDoS module has detected a {attack_vector}",
-                              'name': attack_vector, 'category': attack_vector})
+                parsed_attack_vector = attack_vector.replace("_", " ") if "_" in attack_vector else attack_vector
+                event.update({'reason': f"WebDDoS module has detected a {parsed_attack_vector}",
+                              'name': attack_vector, 'category': f"WebDDoS {parsed_attack_vector}"})
+            else:
+                event['name'] = "WebDDoS Attack Detected"
 
             # Process 'enrichmentContainer' if present
             if 'enrichmentContainer' in event:

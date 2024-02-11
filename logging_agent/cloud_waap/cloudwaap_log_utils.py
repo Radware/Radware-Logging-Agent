@@ -1,5 +1,6 @@
 import re
 from urllib.parse import urlparse
+
 from logging_agent.logging_config import get_logger
 from datetime import datetime
 
@@ -305,12 +306,12 @@ class CloudWAAPProcessor:
             return log
 
     @staticmethod
-    def transform_time(time_string, input_format='epoch_ms', output_format='epoch_ms_str'):
+    def transform_time(time_data, input_format='epoch_ms', output_format='epoch_ms_str'):
         """
         Transforms a time string from one format to another.
 
         Args:
-            time_string (str): The time string to be transformed.
+            time_data (str or int): The time data to be transformed.
             input_format (str): The format of the input time string. Supported formats include
                                 'epoch_ms', '%d/%b/%Y:%H:%M:%S %z', '%d-%m-%Y %H:%M:%S',
                                 '%b %d %Y %H:%M:%S', 'ISO8601', and 'ISO8601_NS'.
@@ -323,26 +324,31 @@ class CloudWAAPProcessor:
         try:
             # Initialize variables for the epoch time in milliseconds
             epoch_time_ms = 0
-            # TODO if output in epoch_ms_str or epoch_ms_int is short then 13 char then add 0 so output like 1706598020 would become 1706598020000 and if it was 17065980 turn to 1706598000000
             # Handle input time based on the input format
             if input_format in ['epoch_ms', 'epoch_ms_str']:
+                time_string = str(time_data)
+                while len(time_string) < 13:
+                    time_string += '0'
                 epoch_time_ms = int(time_string)
             elif input_format in ['%d/%b/%Y:%H:%M:%S %z', "%d-%m-%Y %H:%M:%S", '%b %d %Y %H:%M:%S', 'ISO8601',
                                   'ISO8601_NS']:
                 if input_format == 'ISO8601_NS':
-                    base_time, ns = time_string[:-1].split('.')
+                    base_time, ns = time_data[:-1].split('.')
                     parsed_time = datetime.strptime(base_time, '%Y-%m-%dT%H:%M:%S')
                     epoch_time_ms = int(parsed_time.timestamp() * 1000) + int(ns[:3])
                 else:
-                    parsed_time = datetime.strptime(time_string, input_format)
+                    parsed_time = datetime.strptime(time_data, input_format)
                     epoch_time_ms = int(parsed_time.timestamp() * 1000)
             else:
                 raise ValueError(f"Unsupported input format: {input_format}")
 
-            # Transform to the output format
-            if output_format == 'epoch_ms_str':
-                return str(epoch_time_ms)
-            elif output_format == 'epoch_ms_int':
+            if output_format == 'epoch_ms_str' or output_format == 'epoch_ms_int':
+                # Ensure output is represented with 13 characters
+                output = str(epoch_time_ms)
+                while len(output) < 13:
+                    output += '0'
+                return output if output_format == 'epoch_ms_str' else int(output)
+
                 return epoch_time_ms
             elif output_format == 'MM dd yyyy HH:mm:ss':
                 return datetime.utcfromtimestamp(epoch_time_ms / 1000.0).strftime('%m %d %Y %H:%M:%S')

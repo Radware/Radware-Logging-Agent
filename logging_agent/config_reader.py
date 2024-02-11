@@ -1,12 +1,9 @@
 import yaml
-import os
 import re
 from urllib.parse import urlparse
 from .app_info import supported_features  # Import supported_features from app_info
-from pathlib import Path
 import importlib.util
-
-
+import platform
 import yaml
 import os
 from pathlib import Path
@@ -89,11 +86,28 @@ class Config:
             self.config['http'] = self.config.get('http', {})
             self.config['https'] = self.config.get('https', {})
 
-            # Normalize paths
-            if 'output_directory' in self.config['general']:
-                self.config['general']['output_directory'] = str(self.normalize_path(self.config['general']['output_directory']))
-            if 'log_directory' in self.config['general']:
-                self.config['general']['log_directory'] = str(self.normalize_path(self.config['general']['log_directory']))
+            # Normalize paths and set defaults based on OS
+            default_output_dir = '/tmp/' if platform.system() == 'Linux' else 'C:\\Temp\\'
+            default_log_dir = '/var/log/rla/' if platform.system() == 'Linux' else 'C:\\Logs\\rla\\'
+            default_log_file = 'agent.log'
+
+            # Setting default for output directory if it does not exist or is empty
+            if 'output_directory' not in self.config['general'] or not self.config['general']['output_directory']:
+                self.config['general']['output_directory'] = default_output_dir
+            else:
+                self.config['general']['output_directory'] = str(
+                    self.normalize_path(self.config['general']['output_directory']))
+
+            # Setting default for log directory if it does not exist or is empty
+            if 'log_directory' not in self.config['general'] or not self.config['general']['log_directory']:
+                self.config['general']['log_directory'] = default_log_dir
+            else:
+                self.config['general']['log_directory'] = str(
+                    self.normalize_path(self.config['general']['log_directory']))
+
+            # Setting default log file name if it does not exist or is empty
+            if 'log_file' not in self.config['general'] or not self.config['general']['log_file']:
+                self.config['general']['log_file'] = default_log_file
 
             # Process agents
             self.config['agents'] = {agent['name']: agent for agent in self.config.get('agents', [])}

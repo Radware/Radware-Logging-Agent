@@ -136,8 +136,9 @@ To install the Radware Logging Agent on a Linux system, follow these steps:
 2. **Run the Installation Script**:
    The repository includes a script setup_rla.sh which automates the installation process:
    ```bash
-   chmod +x setup_rla.sh
-   ./setup_rla.sh
+   cd rla 
+   chmod +x install_rla.sh
+   sudo ./install_rla.sh
    ```
    Follow the instructions provided by the script. It will guide you through installing Python 3.8 or higher, pip3, and other necessary components.
 3. **Configure rla.yaml**:
