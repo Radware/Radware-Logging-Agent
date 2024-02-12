@@ -252,8 +252,8 @@
           "reason": "reason",
           "category": "cat",
           "severity": "sev",
-          "startTime": "startTime",
-          "endTime": "endTime"
+          "startTime": "start",
+          "endTime": "end"
         }
       }
     },

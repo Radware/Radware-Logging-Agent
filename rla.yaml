@@ -1,15 +1,24 @@
 # Radware Logging Agent Configuration File
 # -----------------------------------------
-# This file configures the Radware Logging Agent (RLA) for log collection, processing, and forwarding.
+# Configures the Radware Logging Agent (RLA) for log collection, processing, and forwarding.
+# Note: For installations via install.sh, leaving log_file, output_directory, and log_directory empty is recommended to automatically use default values.
 
 # General Settings
 # ----------------
-# These settings are applicable to the entire operation of the agent.
+# Applicable to the entire operation of the agent.
+
 general:
-  log_file: '' # name of the log file where the agent's internal logs will be written.
-  output_directory: ''  # Directory to store temporary files during processing.
-  log_directory: ''  # Directory for storing log files.
-  logging_levels: "INFO"  # Logging level for the agent's internal logs. Options: "INFO", "WARNING", "DEBUG", "ERROR".
+  # Name of the log file for the agent's internal logs. Leave empty for default: "agent.rla"
+  log_file: ''
+
+  # Directory for storing temporary files. Leave empty for default: "/tmp/"
+  output_directory: ''
+
+  # Directory for log files. Leave empty for default: "/var/log/rla/"
+  log_directory: ''
+
+  # Logging level for the agent's internal logs. Options: "INFO", "WARNING", "DEBUG", "ERROR".
+  logging_levels: "INFO"
 
 # AWS Simple Queue Service (SQS) Settings
 # ---------------------------------------
@@ -46,43 +55,6 @@ output:
   type: ''  # The transport protocol for sending logs. Options: 'http', 'https', 'tcp', 'udp', 'tls'.
   destination: ''  # Destination where logs are sent. Format varies based on 'type'.
 
-# Format-Specific Configurations
-# ------------------------------
-# Customizations for each output format: CEF, JSON, LEEF.
-#
-# General Format Options:
-# - 'time_format': Defines the format for timestamps. Options:
-#   - 'epoch_ms_str': String representation of epoch time in milliseconds.
-#   - 'epoch_ms_int': Integer representation of epoch time in milliseconds.
-#   - 'MM dd yyyy HH:mm:ss': Custom formatted date-time string.
-#   - 'ISO8601': ISO 8601 formatted date-time string.
-# - 'severity_format' (only for CEF and LEEF): Defines the format for representing log severity levels. Options:
-#   - 1: Standard textual representations ("info", "low", "warning", "high", "critical").
-#   - 2: Descriptive textual representations ("Unknown", "Low", "Medium", "High", "Very-High").
-#   - 3: Numeric severity levels ranging from 1 to 10.
-
-formats:
-  json:
-    time_format: ""  # Time format for JSON logs
-    unify_fields: true
-  # Uncomment below sections as needed for other formats
-  # cef:
-  #   delimiter: "\n"  # Delimiter used to separate CEF events
-  #   time_format: "MM dd yyyy HH:mm:ss"  # Time format for CEF logs
-  #   unify_fields: true
-  #   severity_format: 1
-  #   syslog_header:
-  #     generate_header: true  # Enable or disable the generation of syslog header
-  #     host: "product"  # Source of the host field in syslog header
-  # leef:
-  #   delimiter: "\n"  # Delimiter used to separate LEEF events
-  #   time_format: "MM dd yyyy HH:mm:ss"  # Time format for LEEF logs
-  #   unify_fields: true
-  #   severity_format: 1
-  #   syslog_header:
-  #     generate_header: true  # Enable or disable the generation of syslog header
-  #     host: "product"  # Source of the host field in syslog header
-
 # TLS Configuration
 # -----------------
 # Settings for secure TCP communication using TLS.
@@ -100,7 +72,7 @@ tls:
 http:
   # Whether to enable batch processing for HTTP. Batch processing groups multiple
   # log events into a single HTTP request.
-  batch: true
+  batch: false
 
   # Authentication settings for HTTP communication. Supported authentication types
   # are None, Basic, and Bearer. For Basic and Bearer, provide the required credentials.
@@ -142,3 +114,49 @@ https:
   # custom_headers:
   #   X-Secure-Header: "Secure Value"
   #   Another-Secure-Header: "Another Secure Value"
+
+
+# Format-Specific Configurations
+# ------------------------------
+# Customizations for each output format: CEF, JSON, LEEF.
+#
+# General Format Options:
+# - 'time_format': Defines the format for timestamps. Options:
+#   - 'epoch_ms_str': String representation of epoch time in milliseconds.
+#   - 'epoch_ms_int': Integer representation of epoch time in milliseconds.
+#   - 'MM dd yyyy HH:mm:ss': Custom formatted date-time string.
+#   - 'ISO8601': ISO 8601 formatted date-time string.
+# - 'severity_format' (only for CEF and LEEF): Defines the format for representing log severity levels. Options:
+#   - 1: Standard textual representations ("info", "low", "warning", "high", "critical").
+#   - 2: Descriptive textual representations ("Unknown", "Low", "Medium", "High", "Very-High").
+#   - 3: Numeric severity levels ranging from 1 to 10.
+# - 'host': The hostname to be used in the syslog header in the CEF and LEEF format options.
+#      such as 'product', 'tenant', or 'application'. Specify the source field name directly.
+# - 'product': Specify the product name or identifier to be included in the logs. This field can be used to categorize logs by product.
+# - 'tenant': Specify the tenant name or identifier for multi-tenant applications. This helps in segregating logs per tenant.
+# - 'application': Specify the application name or identifier. Useful for distinguishing logs when multiple applications share the same logging infrastructure.
+
+
+formats:
+  json:
+    time_format: ""  # Time format for JSON logs
+    unify_fields: true
+  # Uncomment below sections as needed for other formats
+#  cef:
+#    delimiter: "\n"  # Delimiter used to separate CEF events
+#    time_format: "MM dd yyyy HH:mm:ss"  # Time format for CEF logs
+#    unify_fields: true
+#    severity_format: 1
+#    syslog_header:
+#      generate_header: true  # Enable or disable the generation of syslog header
+#      host: "product"  # Source of the host field in syslog header
+#  leef:
+#    delimiter: "\n"  # Delimiter used to separate LEEF events
+#    time_format: "MM dd yyyy HH:mm:ss"  # Time format for LEEF logs
+#    unify_fields: true
+#    severity_format: 1
+#    syslog_header:
+#      generate_header: true  # Enable or disable the generation of syslog header
+#      host: "product"  # Source of the host field in syslog header
+
+

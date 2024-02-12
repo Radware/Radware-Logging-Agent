@@ -59,14 +59,14 @@ def construct_leef_syslog_header(format_options, log):
 
         syslog_header += time_data + " "
 
-        host = "Radware-CloudWAAP"
+        host = "Cloud WAAP"
         if syslog_headers and 'host' in syslog_headers:
             host_mapping = {
-                "product": "Radware-CloudWAAP",
+                "product": "Cloud WAAP",
                 "tenant": log.get('tenant_name', 'UnknownTenant'),
                 "application": log.get('application_name', 'UnknownApplication')
             }
-            host = host_mapping.get(syslog_headers['host'], "Radware-CloudWAAP")
+            host = host_mapping.get(syslog_headers['host'], "Cloud WAAP")
 
         syslog_header += host + " "
         return syslog_header
@@ -88,6 +88,8 @@ def sanitize_leef_value(value):
     try:
         if not isinstance(value, str):
             value = str(value)  # Convert to string if not already
+
+        value = value.lstrip()
 
         # Escape characters that are reserved in LEEF
         value = (value.replace('\\', '\\\\')  # Escape backslashes first

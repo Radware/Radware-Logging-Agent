@@ -186,11 +186,11 @@ class CloudWAAPProcessor:
     def parse_waf_request(request, protocol, host):
         """
         Parse a WAF request to extract the method, full URL, HTTP version, and specified headers.
-        Converts all headers into a single string.
+        Converts all headers into a single string, excluding cookies which are handled separately.
 
         Parameters:
         - request (str): The raw request string.
-        - protocol (str): The protocol used ('http' or 'https').
+        - protocol (str): The protocol used ('http' or 'https'), converted to lowercase.
         - host (str): The host to which the request was made.
 
         Returns:
@@ -198,39 +198,49 @@ class CloudWAAPProcessor:
                  Returns an empty string for each element if not found or if the request doesn't match the expected format.
         """
         try:
-            # Split the request line from the headers
+            protocol = protocol.lower()  # Ensure protocol is lowercase
             lines = request.split('\r\n')
             request_line = lines[0]
             headers = lines[1:]
 
-            # Extract method, URI, and HTTP version from the request line
             parts = request_line.split(' ')
             method = parts[0] if len(parts) > 0 else ""
             uri = parts[1] if len(parts) > 1 else ""
             http_version = parts[2] if len(parts) > 2 else ""
-            full_url = f"{protocol}://{host}{uri}"
 
-            # Initialize header variables
+            # Initialize header variables and placeholders for extracted headers
             cookie = ""
             user_agent = ""
             referrer = ""
-            headers_str = ""
+            headers_dict = {}
 
-            # Compile all headers into a single string and extract specific headers
+            # Process each header line
             for line in headers:
-                if line.startswith('Cookie:'):
-                    cookie = line.split('Cookie: ')[1]
-                elif line.startswith('User-Agent:'):
-                    user_agent = line.split('User-Agent: ')[1]
-                elif line.startswith('Referer:'):
-                    referrer = line.split('Referer: ')[1]
+                if ": " in line:
+                    key, value = line.split(": ", 1)
+                    headers_dict[key] = value
+                    if key.lower() == 'cookie':
+                        cookie = value
+                    elif key.lower() == 'user-agent':
+                        user_agent = value
+                    elif key.lower() == 'referer':
+                        referrer = value
 
-                headers_str += line + '; '
+            # Use host header if available
+            host_header = headers_dict.get('Host', host)
+            full_url = f"{protocol}://{host_header}{uri}"
 
-            return method, full_url, http_version, cookie, user_agent, referrer, headers_str.strip('; ')
+            # Remove cookie from headers_dict to avoid duplication
+            headers_dict.pop('Cookie', None)
+
+            # Compile all headers except cookies into a single string
+            headers_str = "; ".join([f"{key}: {value}" for key, value in headers_dict.items()])
+
+            return method, full_url, http_version, cookie, user_agent, referrer, headers_str
         except Exception as e:
             logger.error(f"Error parsing WAF request: {e}")
             return "", "", "", "", "", "", ""
+
 
     @staticmethod
     def enrich_waf_log(log, method, full_url, http_version, cookie, user_agent, referrer, headers):
@@ -376,15 +386,16 @@ class CloudWAAPProcessor:
         try:
             if not key:
                 key = None
-            tenant_name = application_name = None
+            tenant_name = application_name = product_name = None
             if product == "cloud_waap" and log_type != "Access":
                 tenant_name = CloudWAAPProcessor.parse_tenant_name(key)
                 application_name = CloudWAAPProcessor.parse_application_name(key)
+                product_name = "Cloud WAAP"
 
-            return {"tenant_name": tenant_name, "application_name": application_name, "key": key}
+            return {"tenant_name": tenant_name, "application_name": application_name, "key": key,  "product": product_name}
         except Exception as e:
             logger.error(f"Error extracting metadata: {e}")
-            return {"tenant_name": None, "application_name": None, "key": key}
+            return {"tenant_name": None, "application_name": None, "key": key, "product": product_name}
 
     @staticmethod
     def flatten_latest_realtime_signature(log_data):
