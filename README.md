@@ -169,4 +169,169 @@ The Radware Logging Agent is continually evolving, with plans to expand its capa
 - **Support for Additional Radware Products**: Our goal is to extend RLA's capabilities to include more Radware products, enriching and customizing their logs for optimal SIEM integration.
 - **Versatile Protocol Support**: We're committed to enabling easy log transmission through various protocols, ensuring seamless integration with diverse SIEM systems.
 
-Stay tuned for these exciting developments as we continue to enhance the Radware Logging Agent's functionalities to meet the evolving needs of our users.
+## Log Format Examples
+
+This section provides examples of logs processed by the Radware Logging Agent, showcasing the original JSON format, enriched JSON, CEF (Common Event Format), and LEEF (Log Event Extended Format) versions for different log types.
+
+### Cloud WAAP - Access Log
+
+#### Original JSON
+```json
+{
+    "accept_language": "en-US,en;q=0.9",
+    "action": "Allowed",
+    "application_id": "cb696959b-2f53-41f2-87ad-9c5810313a74",
+    "application_name": "MyApp",
+    "cookie": "-",
+    "country_code": "US",
+    "destination_ip": "10.22.79.113",
+    "destination_port": 443,
+    "directory": "/user",
+    "host": "myapp.radware.net",
+    "http_bytes_in": 535,
+    "http_bytes_out": 7607,
+    "http_method": "POST",
+    "protocol": "https",
+    "referrer": "-",
+    "request": "POST /user/login HTTP/1.1",
+    "request_time": "0.114",
+    "response_code": 200,
+    "source_ip": "10.1.154.77",
+    "source_port": 43834,
+    "tenant_name": "MyAccount",
+    "time": "27/Jan/2024:00:49:40 +0000",
+    "user_agent": "Mozilla/5.0 (Windows NT 6.1; Trident/7.0; rv:11.0) like Gecko",
+    "x-forwarded-for": "-"
+}
+```
+#### enriched(homogenized) JSON
+```json
+{
+    "accept_language": "en-US,en;q=0.9",
+    "action": "Allowed",
+    "application_id": "cb69699b-2f53-41f2-87ad-9c5810313a74",
+    "application_name": "MyApp",
+    "country_code": "US",
+    "destination_ip": "66.22.79.113",
+    "destination_port": 443,
+    "directory": "/user",
+    "host": "myapp.radware.net",
+    "http_bytes_in": 535,
+    "http_bytes_out": 7607,
+    "http_method": "POST",
+    "http_version": "HTTP/1.1",
+    "log_type": "Access",
+	"protocol": "https",
+    "request": "https://myapp.radware.net/user/login",
+    "request_time": "0.114",
+    "response_code": 200,
+    "source_ip": "10.1.154.77",
+    "source_port": 43834,
+    "tenant_name": "MyAccount",
+    "time": "2024-27-02T00:49:40.000Z",
+    "uri": "/user/login",
+    "user_agent": "Mozilla/5.0 (Windows NT 6.1; Trident/7.0; rv:11.0) like Gecko"
+}
+```
+#### CEF
+```bash
+2024-12-02T08:50:40.100Z  Cloud WAAP CEF:0|Radware|Cloud WAAP|1.0|Access|Access Log|Info| rt=2024-27-01T00:49:40.000Z act=Allowed dhost=myapp.radware.net src=10.1.154.77 dst=10.22.79.113 spt=43834 dpt=443 app=https request=https://myapp.radware.net/user/login uri=/user/login method=POST in=535 out=7607 requestClientApplication=Mozilla/5.0 (Windows NT 6.1; Trident/7.0; rv:11.0) like Gecko rdwrCldDirectory=/user rdwrCldAcceptLanguage=en-US,en;q\=0.9 rdwrCldRequestTime=0.114 rdwrCldResponseCode=200 rdwrCldCountryCode=US rdwrCldApplicationId=cb69699b-2f53-41f2-87ad-9c5810313a74 rdwrCldApplicationName=MyApp rdwrCldTenantName=MyAccount rdwrCldHttpVersion=HTTP/1.1
+```
+#### LEEF
+```bash
+2024-12-02T08:50:40.100Z  Cloud WAAP LEEF:2.0|Radware|Cloud WAAP|1.0|Access|eventTime=2024-27-01T00:49:40.000Z	action=Allowed	dhost=myapp.radware.net	src=10.1.154.77	dst=10.22.79.113	srcPort=43834	dstPort=443	proto=https	url=https://myapp.radware.net/user/login	uri=/user/login	method=POST	bytesIn=535	bytesOut=7607	userAgent=Mozilla/5.0 (Windows NT 6.1; Trident/7.0; rv:11.0) like Gecko	responseCode=200	rdwrCldDirectory=/user	rdwrCldAcceptLanguage=en-US,en;q\=0.9	rdwrCldRequestTime=0.114	rdwrCldCountryCode=US	rdwrCldApplicationId=cb69699b-2f53-41f2-87ad-9c5810313a74	rdwrCldApplicationName=MyApp	rdwrCldTenantName=MyAccount	rdwrCldHttpVersion=HTTP/1.1
+```
+
+
+### Cloud WAAP - WAF Log
+
+#### WAF - Original JSON
+```json
+{
+    "action": "Blocked",
+    "applicationName": "MyApp",
+    "appPath": "/api/auth",
+    "destinationIp": "10.35.101.159",
+    "destinationPort": "54009",
+    "directory": "/api",
+    "enrichmentContainer": {
+        "applicationId": "cb69699b-2f53-41f2-87ad-9c5810313a74",
+        "contractId": "63qwe674-e83d-4fae-909d-84b309ba0cd9",
+        "geoLocation.countryCode": "US",
+        "tenant": "75292c55-9212-4714-babe-851b29de7cab"
+    },
+    "externalIp": "10.160.218.10",
+    "host": "myapp.radware.net",
+    "method": "POST",
+    "protocol": "HTTP",
+    "receivedTimeStamp": "1706313459865",
+    "request": "POST /api/auth HTTP/1.1\r\nAccept-Encoding: gzip\r\nHost: myapp.radware.net\r\nContent-Length: 0\r\nUser-Agent: Mozilla/5.0 (Windows NT 6.3; Win64; x64; rv:87.0) Gecko/20100101 Firefox/87.0\r\naccept: application/json\r\nx-remote-ip: 128.160.218.10\r\ncontent-type: application/json\r\nNotBot: True\r\nAuthorization: Basic dGVzdF91c2VyOjEyMzQ1Ng==\r\nCookie: uzmx=17063028541647068335-3f843db00cc4acfa31; AWSALB=5CC+YSlWg; AWSALBCORS=5CC\r\nShieldSquare-Response: 0\r\n\r\n",
+    "role": "public",
+    "security": true,
+    "severity": "High",
+    "sourceIp": "10.160.218.10",
+    "sourcePort": "59289",
+    "targetModule": "API Security Module",
+    "title": "API request method not allowed",
+    "transId": "2669954742",
+    "URI": "/api/auth",
+    "user": "public",
+    "vhost": "myapp.radware.net",
+    "violationCategory": "API Security Violation",
+    "violationDetails": "A user attempted to access an API endpoint using an HTTP Method that is not allowed.\n\r\nDescription:\r\nAPI Security Violation Detected.\nEndpoint:  /api/auth\nMethod: POST\nViolation: Invalid Method.\nInvalid method\n\r\nSuggestion: Revise API Security settings if needed\r\nModule: API Security\r\nError Number: -216\r\n\nAuthenticated as Public\n",
+    "violationType": "API Security Violation",
+    "webApp": "App_MyAccount_MyApp"
+}
+```
+#### WAF - enriched(homogenized) JSON
+```json
+{
+    "action": "Blocked",
+    "application_id": "cb69699b-2f53-41f2-87ad-9c5810313a74",
+    "application_name": "MyApp",
+    "appPath": "/api/auth",
+    "category": "API Security Violation",
+    "contract_id": "63qwe674-e83d-4fae-909d-84b309ba0cd9",
+    "cookie": "uzmx=17063028541647068335-3f843db00cc4acfa31; AWSALB=5CC+YSlWg; AWSALBCORS=5CC",
+    "country_code": "US",
+    "destination_ip": "10.160.218.10",
+    "destination_port": "54009",
+    "directory": "/api",
+    "headers": "Accept-Encoding: gzip; Host: myapp.radware.net; Content-Length: 0; User-Agent: Mozilla/5.0 (Windows NT 6.3; Win64; x64; rv:87.0) Gecko/20100101 Firefox/87.0; accept: application/json; x-remote-ip: 10.160.218.10; content-type: application/json; ShieldSquare-Response: 0",
+    "host": "myapp.radware.net",
+    "http_method": "POST",
+    "http_version": "HTTP/1.1",
+	"log_type": "WAF",
+    "name": "API request method not allowed",
+    "protocol": "HTTP",
+	"product": "Cloud WAAP",
+    "reason": "A user attempted to access an API endpoint using an HTTP Method that is not allowed.\n\r\nDescription:\r\nAPI Security Violation Detected.\nEndpoint:  /api/auth\nMethod: POST\nViolation: Invalid Method.\nInvalid method\n\r\nSuggestion: Revise API Security settings if needed\r\nModule: API Security\r\nError Number: -216\r\n\nAuthenticated as Public\n",
+    "referrer": "",
+    "request": "http://myapp.radware.net/api/auth",
+    "role": "public",
+    "security": true,
+    "severity": "High",
+    "source_ip": "10.160.218.10",
+    "source_port": "59289",
+    "targetModule": "API Security Module",
+    "tenant_id": "75292c55-9212-4714-babe-851b29de7cab",
+    "tenant_name": "MyAccount",
+    "time": "2024-26-01T00:49:40.000Z",
+    "trans_id": "2669954742",
+    "uri": "/api/auth",
+    "user": "public",
+    "user_agent": "Mozilla/5.0 (Windows NT 6.3; Win64; x64; rv:87.0) Gecko/20100101 Firefox/87.0",
+    "vhost": "myapp75292c55-9212.radware.net",
+    "violationType": "API Security Violation",
+    "webApp": "App_MyAccount_MyApp"
+}
+```
+#### WAF - CEF
+```bash
+2024-12-02T08:48:40.000Z Cloud WAAP CEF:0|Radware|Cloud WAAP|1.0|WAF|API request method not allowed|High| rt=2024-26-01T00:49:40.000Z act=Blocked dhost=myapp.radware.net src=10.160.218.10 dst=10.160.218.10 spt=59289 dpt=54009 app=HTTP requestMethod=POST request=http://myapp.radware.net/api/auth uri=/api/auth reason=A user attempted to access an API endpoint using an HTTP Method that is not allowed.\\n\\r\\nDescription:\\r\\nAPI Security Violation Detected.\\nEndpoint:  /api/auth\\nMethod: POST\\nViolation: Invalid Method.\\nInvalid method\\n\\r\\nSuggestion: Revise API Security settings if needed\\r\\nModule: API Security\\r\\nError Number: -216\\r\\n\\nAuthenticated as Public\\n cat=API Security Violation requestClientApplication=Mozilla/5.0 (Windows NT 6.3; Win64; x64; rv:87.0) Gecko/20100101 Firefox/87.0 requestCookies=uzmx\=17063028541647068335-3f843db00cc4acfa31; AWSALB\=5CC+YSlWg; AWSALBCORS\=5CC rdwrCldAppPath=/api/auth rdwrCldDestinationIp=10.35.101.159 rdwrCldDirectory=/api rdwrCldRole=public rdwrCldSecurity=True rdwrCldSeverity=High rdwrCldTargetModule=API Security Module rdwrCldUser=public rdwrCldVhost=myapp.radware.net rdwrCldViolationType=API Security Violation rdwrCldWebApp=App_MyAccount_MyApp rdwrCldTenantName=MyAccount rdwrCldApplicationName=MyApp rdwrCldTransId=2669954742 rdwrCldCountryCode=US rdwrCldApplicationId=cb69699b-2f53-41f2-87ad-9c5810313a74 rdwrCldContractId=63qwe674-e83d-4fae-909d-84b309ba0cd9 rdwrCldTenantId=75292c55-9212-4714-babe-851b29de7cab rdwrCldHttpVersion=HTTP/1.1 rdwrCldHeaders=Accept-Encoding: gzip; Host: myapp.radware.net; Content-Length: 0; User-Agent: Mozilla/5.0 (Windows NT 6.3; Win64; x64; rv:87.0) Gecko/20100101 Firefox/87.0; accept: application/json; x-remote-ip: 10.160.218.10; content-type: application/json; ShieldSquare-Response: 0
+```
+#### WAF - LEEF
+```bash
+2024-12-02T08:48:40.000Z Cloud WAAP LEEF:2.0|Radware|Cloud WAAP|1.0|WAF|eventTime=2024-26-01T00:49:40.000Z	action=Blocked	dhost=myapp.radware.net	src=10.160.218.10	dst=10.160.218.10	srcPort=59289	dstPort=54009	proto=HTTP	method=POST	request=http://myapp.radware.net/api/auth	uri=/api/auth	name=API request method not allowed	reason=A user attempted to access an API endpoint using an HTTP Method that is not allowed.\\n\\r\\nDescription:\\r\\nAPI Security Violation Detected.\\nEndpoint:  /api/auth\\nMethod: POST\\nViolation: Invalid Method.\\nInvalid method\\n\\r\\nSuggestion: Revise API Security settings if needed\\r\\nModule: API Security\\r\\nError Number: -216\\r\\n\\nAuthenticated as Public\\n	cat=API Security Violation	cookie=uzmx\=17063028541647068335-3f843db00cc4acfa31; AWSALB\=5CC+YSlWg; AWSALBCORS\=5CC	userAgent=Mozilla/5.0 (Windows NT 6.3; Win64; x64; rv:87.0) Gecko/20100101 Firefox/87.0	sev=High	rdwrCldAppPath=/api/auth	rdwrCldDirectory=/api	rdwrCldRole=public	rdwrCldSecurity=True	rdwrCldTargetModule=API Security Module	rdwrCldUser=public	rdwrCldVhost=myapp.radware.net	rdwrCldViolationType=API Security Violation	rdwrCldWebApp=App_MyAccount_MyApp	rdwrCldTenantName=MyAccount	rdwrCldApplicationName=MyApp	rdwrCldTransId=2669954742	rdwrCldCountryCode=US	rdwrCldApplicationId=cb69699b-2f53-41f2-87ad-9c5810313a74	rdwrCldContractId=63qwe674-e83d-4fae-909d-84b309ba0cd9	rdwrCldTenantId=75292c55-9212-4714-babe-851b29de7cab	rdwrCldHttpVersion=HTTP/1.1	rdwrCldHeaders=Accept-Encoding: gzip; Host: myapp.radware.net; Content-Length: 0; User-Agent: Mozilla/5.0 (Windows NT 6.3; Win64; x64; rv:87.0) Gecko/20100101 Firefox/87.0; accept: application/json; x-remote-ip: 10.160.218.10; content-type: application/json; ShieldSquare-Response: 0
+```
+

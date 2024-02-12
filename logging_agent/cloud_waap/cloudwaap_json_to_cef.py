@@ -66,10 +66,10 @@ def construct_cef_syslog_header(format_options, log):
         syslog_header += time_data + " "
 
         # Handle the host part of the syslog header
-        host = "CloudWAAP"  # Default host
+        host = "Cloud WAAP"  # Default host
         if syslog_headers and 'host' in syslog_headers:
             if syslog_headers['host'] == "product":
-                host = "CloudWAAP"
+                host = "Cloud WAAP"
             elif syslog_headers['host'] == "tenant":
                 host = log.get('tenant_name', 'UnknownTenant')
             elif syslog_headers['host'] == "application":
