@@ -222,6 +222,7 @@ This section provides examples of logs processed by the Radware Logging Agent, s
     "http_version": "HTTP/1.1",
     "log_type": "Access",
 	"protocol": "https",
+    "product": "Cloud WAAP",
     "request": "https://myapp.radware.net/user/login",
     "request_time": "0.114",
     "response_code": 200,
