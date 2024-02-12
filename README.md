@@ -134,8 +134,8 @@ To install the Radware Logging Agent on a Linux system, follow these steps:
    ```bash
    tar -zxvf rla_{latest_release}.tar.gz
    cd rla
-   chmod +x install.sh
-   sudo ./install.sh
+   chmod +x install_rla.sh
+   sudo ./install_rla.sh
    ```
 3. **Configure rla.yaml**:
 After installation, you'll need to configure the `rla.yaml` file to suit your specific environment and requirements. Use the following command to edit the configuration file:

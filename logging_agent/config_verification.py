@@ -103,7 +103,7 @@ def verify_selected_output_config(output_config, formats_config):
     """
     output_format = output_config.get('output_format')
     format_options = formats_config.get(output_format, {})
-    allowed_time_formats = ['epoch_ms_str', 'epoch_ms_int', 'MM dd yyyy HH:mm:ss', 'ISO8601']
+    allowed_time_formats = ['epoch_ms_str', 'epoch_ms_int', 'MM dd yyyy HH:mm:ss', 'ISO8601', '']
     allowed_severity_formats = [1, 2, 3]
 
     # Verify unify_fields for CEF and LEEF
