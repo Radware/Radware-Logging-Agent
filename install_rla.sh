@@ -18,13 +18,23 @@ print_instructions() {
     echo -e "\n$1"
 }
 
-# Ensure python3-venv is installed for Debian/Ubuntu systems
-ensure_python_venv() {
+# Ensure python3-venv and pip3 are installed for Debian/Ubuntu systems
+ensure_dependencies() {
     if [[ "$distro" == "ubuntu" || "$distro" == "debian" ]]; then
-        echo "Ensuring python3-venv is installed..."
-        apt-get update && apt-get install -y python3-venv
+        echo "Ensuring python3-venv and pip3 are installed..."
+        apt-get update && apt-get install -y python3-venv python3-pip
+    elif [[ "$distro" == "centos" || "$distro" == "rhel" ]]; then
+        echo "Ensuring python3-venv and pip3 are installed..."
+        yum install -y python3-venv python3-pip
+    elif [[ "$distro" == "fedora" ]]; then
+        echo "Ensuring python3-venv and pip3 are installed..."
+        dnf install -y python3-venv python3-pip
+    else
+        echo "Unsupported distribution. Please manually install python3-venv and pip3."
+        exit 1
     fi
 }
+
 
 # Function to check Python 3.8+ installation
 check_python() {
@@ -49,7 +59,7 @@ check_pip3() {
 }
 
 # Main setup instructions
-ensure_python_venv
+ensure_dependencies
 check_python
 check_pip3
 
