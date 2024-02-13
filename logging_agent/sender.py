@@ -6,6 +6,8 @@ import json
 import socket
 import ssl
 from .logging_config import get_logger
+from requests.exceptions import SSLError
+
 
 # Create a logger for this module
 logger = get_logger('sender')
@@ -37,7 +39,6 @@ class Sender:
         custom_headers = destination_config.get('custom_headers', {})
         tls_config = destination_config.get('tls_config', {})
 
-
         # Ensure destination URL starts with http:// or https://
         if not destination.startswith("http://") and not destination.startswith("https://"):
             destination = f"{output_type}://{destination}"  # Prepend with output_type
@@ -54,13 +55,14 @@ class Sender:
         if destination.startswith("https://"):
             if tls_config.get('verify', False):
                 session.verify = tls_config.get('ca_cert')  # Path to CA cert
+                logger.info("Verifying against CA Cert", session.verify)
             else:
                 session.verify = False  # Disable SSL verification
 
             # Load client certificate and key if provided
             if 'client_cert' in tls_config and 'client_key' in tls_config:
                 session.cert = (tls_config['client_cert'], tls_config['client_key'])
-
+                logger.info("Client Cert and Key Loaded:", session.cert)
 
         retries = Retry(total=3, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
         adapter = HTTPAdapter(max_retries=retries)
@@ -68,23 +70,25 @@ class Sender:
 
 
         auth = None
-        if authentication.get('auth_type') == 'basic':
-            auth = HTTPBasicAuth(authentication.get('username'), authentication.get('password'))
-        elif authentication.get('auth_type') == 'bearer':
-            headers['Authorization'] = f"Bearer {authentication.get('token')}"
+        if authentication:
+            if authentication.get('auth_type') == 'basic':
+                auth = HTTPBasicAuth(authentication.get('username'), authentication.get('password'))
+            elif authentication.get('auth_type') == 'bearer':
+                headers['Authorization'] = f"Bearer {authentication.get('token')}"
 
         try:
             if batch_mode:
-                batch_data = data
-                response = session.post(destination, data=batch_data, headers=headers, auth=auth)
-                response.raise_for_status()  # Raise an error for bad status
+                response = session.post(destination, json=data, headers=headers, auth=auth)
+                response.raise_for_status()
                 logger.info(f"Batch data sent successfully to {destination}")
             else:
                 for event in data:
-                    response = session.post(destination, data=event, headers=headers, auth=auth)
-                    response.raise_for_status()  # Raise an error for bad status
+                    response = session.post(destination, json=event, headers=headers, auth=auth)
+                    response.raise_for_status()
                 logger.info(f"All events sent successfully to {destination}")
             return True
+        except SSLError as ssl_error:
+            logger.error(f"SSL Error encountered: {ssl_error}")
         except Exception as e:
             logger.error(f"Failed to send data to {destination}: {e}")
             return False

@@ -84,8 +84,18 @@ class Config:
                 self.config['tls'] = tls_config
 
             self.config['http'] = self.config.get('http', {})
-            self.config['https'] = self.config.get('https', {})
+            # Additional normalization for HTTPS configuration paths
+            https_config = self.config.get('https', {})
+            if https_config.get('verify', False):
+                if 'ca_cert' in https_config and https_config['ca_cert']:
+                    https_config['ca_cert'] = str(self.normalize_path(https_config['ca_cert']))
+                if 'client_cert' in https_config and https_config['client_cert']:
+                    https_config['client_cert'] = str(self.normalize_path(https_config['client_cert']))
+                if 'client_key' in https_config and https_config['client_key']:
+                    https_config['client_key'] = str(self.normalize_path(https_config['client_key']))
 
+                # Update the https configuration back into self.config
+                self.config['https'] = https_config
             # Normalize paths and set defaults based on OS
             default_output_dir = '/tmp/' if platform.system() == 'Linux' else 'C:\\Temp\\'
             default_log_dir = '/var/log/rla/' if platform.system() == 'Linux' else 'C:\\Logs\\rla\\'
@@ -128,52 +138,40 @@ class Config:
             combined_config['aws_credentials'] = self.config['aws_credentials']
             combined_config['output'] = self.config['output']
             combined_config['formats'] = self.config['formats']
+            output_type = self.config['output'].get('type')
+            combined_config[output_type] = self.config.get(output_type, {})
 
-            # Default settings for TLS, HTTP, and HTTPS
-            tls_defaults = {'batch': False, 'verify': False, 'ca_cert': '', 'client_cert': '', 'client_key': ''}
-            http_defaults = {'batch': False, 'authentication': {'auth_type': 'none'}, 'custom_headers': {}}
+            # Define default settings
+            defaults = {
+                'tls': {'batch': False, 'verify': False, 'ca_cert': '', 'client_cert': '', 'client_key': ''},
+                'http': {'batch': False, 'authentication': {'auth_type': 'none'}, 'custom_headers': {}},
+                'https': {'batch': False, 'verify': False, 'ca_cert': '', 'client_cert': '', 'client_key': '',
+                          'authentication': {'auth_type': 'none'}, 'custom_headers': {}},
+                'udp': {'batch': False},
+                'tcp': {'batch': False}
+            }
 
-            # Apply TLS defaults for both tls and https options
-            for tls_option in ['tls', 'https']:
-                combined_config[tls_option] = combined_config.get(tls_option, {})
-                for key, default_value in tls_defaults.items():
-                    combined_config[tls_option].setdefault(key, default_value)
+            # Merge configurations carefully, with special handling for nested structures
 
-            # Explicitly check and apply HTTP and HTTPS configurations
-            for http_option in ['http', 'https']:
-                # Initialize with existing config or an empty dictionary if not present
-                http_https_config = combined_config.get(http_option, {})
+            # Apply configurations based on the output type, preserving existing settings
+            output_type = self.config['output'].get('type')
+            if output_type in defaults:
+                specific_config = combined_config.get(output_type, {})
+                self._merge_configs(specific_config, defaults[output_type])  # Merge with defaults carefully
+                combined_config[output_type] = specific_config
 
-                # Check and apply batch setting from self.config if present
-                if 'batch' in self.config.get(http_option, {}):
-                    batch_value = self.config[http_option]['batch']
-                else:
-                    # Apply default if not present in self.config
-                    batch_value = http_defaults['batch']
-                http_https_config['batch'] = batch_value
-
-                # Check and apply authentication and custom_headers, ensuring not to overwrite existing configs
-                http_https_config['authentication'] = http_https_config.get('authentication',
-                                                                            http_defaults['authentication'].copy())
-                http_https_config['custom_headers'] = http_https_config.get('custom_headers',
-                                                                            http_defaults['custom_headers'].copy())
-
-                # Update the combined_config with the updated http or https config
-                combined_config[http_option] = http_https_config
-
-            combined_config['tcp'] = {'batch': False}
-            combined_config['udp'] = {'batch': False}
-
-
-            # Ensure existing configurations are preserved, particularly for authentication and custom headers
-            # This step is crucial if there are predefined settings in the configuration file that should not be overridden
-
-            # Apply default format settings based on the output format
             output_format = combined_config['output'].get('output_format')
             default_format_values = self.get_default_format_values()
             format_defaults = default_format_values.get(output_format, {})
-            for key, value in format_defaults.items():
-                combined_config['formats'].setdefault(key, value)
+
+            # Check if the specific format is already in 'formats'; if not, initialize it
+            if output_format not in combined_config['formats']:
+                combined_config['formats'][output_format] = {}
+
+
+
+            # Apply defaults specifically within the sub-dictionary for the output format
+            self._apply_format_defaults(combined_config['formats'][output_format], format_defaults)
 
             return combined_config
         return None
@@ -206,6 +204,21 @@ class Config:
             }
         }
 
+    def _merge_configs(self, base, updates):
+        for key, value in updates.items():
+            if key in base:
+                if isinstance(base[key], dict) and isinstance(value, dict):
+                    self._merge_configs(base[key], value)  # Recursively merge dictionaries
+            else:
+                base[key] = value
+
+    def _apply_format_defaults(self, target_format_dict, defaults):
+        for key, default_value in defaults.items():
+            existing_value = target_format_dict.get(key, None)
+            if existing_value in [None, "", {}]:  # If value is None, empty string, or empty dict
+                target_format_dict[key] = default_value
+            elif isinstance(existing_value, dict) and isinstance(default_value, dict):
+                self._apply_format_defaults(existing_value, default_value)
     def get_all_products(self):
         """
         Returns a list of all unique products assigned to agents.
