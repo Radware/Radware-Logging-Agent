@@ -23,7 +23,7 @@ def enrich_access_log(event, format_options, output_format, metadata, log_type):
         format_option = format_options.get('unify_fields', True)
         if output_format == ['json']:
             event['log_type'] = log_type
-            event['product'] = metadata.get('product', "Cloud WAAP")
+            event['product'] = "Cloud WAAP"
 
         if format_option or output_format in ['cef', 'leef']:
             if event.get('cookie') == "-":
@@ -86,7 +86,7 @@ def enrich_waf_log(event, format_options, output_format, metadata, log_type):
         format_option = format_options.get('unify_fields', True)
         if output_format == "json":
             event['log_type'] = log_type
-            event['product'] = metadata.get('product', "Cloud WAAP")
+            event['product'] = "Cloud WAAP"
 
         if format_option or output_format in ['cef', 'leef']:
             application_name = metadata.get('application_name', '')
@@ -162,7 +162,7 @@ def enrich_bot_log(event, format_options, output_format, metadata, log_type):
         format_option = format_options.get('unify_fields', True)
         if output_format == 'json':
             event['log_type'] = log_type
-            event['product'] = metadata.get('product', "Cloud WAAP")
+            event['product'] = "Cloud WAAP"
 
         if format_option or output_format in ['cef', 'leef']:
             # Time transformation
@@ -228,7 +228,7 @@ def enrich_ddos_log(event, format_options, output_format, metadata, log_type):
         format_option = format_options.get('unify_fields', True)
         if output_format == 'json':
             event['log_type'] = log_type
-            event['product'] = metadata.get('product', "Cloud WAAP")
+            event['product'] = "Cloud WAAP"
 
         if format_option or output_format in ['cef', 'leef']:
             # Homogenize IP and port fields
@@ -294,7 +294,7 @@ def enrich_webddos_log(event, format_options, output_format, metadata, log_type)
         format_option = format_options.get('unify_fields', True)
         if output_format == 'json':
             event['log_type'] = log_type
-            event['product'] = metadata.get('product', "Cloud WAAP")
+            event['product'] = "Cloud WAAP"
 
         if format_option or output_format in ['cef', 'leef']:
             # Update application name from metadata if available
@@ -376,7 +376,7 @@ def enrich_csp_log(event, format_options, output_format, metadata, log_type):
         format_option = format_options.get('unify_fields', True)
         if output_format == 'json':
             event['log_type'] = log_type
-            event['product'] = metadata.get('product', "Cloud WAAP")
+            event['product'] = "Cloud WAAP"
 
         if format_option or output_format in ['cef', 'leef']:
             application_name = metadata.get('application_name', '')

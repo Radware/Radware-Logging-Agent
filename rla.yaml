@@ -32,7 +32,7 @@ aws_credentials:
 # -------------------
 # Configuration of individual agents for log collection. Each agent can be configured for different sources and products.
 agents:
-  - name: ""  # Unique name of the agent.
+  - name: "cloud"  # Unique name of the agent.
     type: "sqs"  # Type of log source. Current options: "sqs".
     num_worker_threads: 5  # Number of worker threads for processing messages.
     product: "cloud_waap"  # The product type associated with this agent. Current options: "cloud_waap".
@@ -139,21 +139,19 @@ https:
 
 formats:
   json:
-    time_format: ""  # Time format for JSON logs
+    time_format: "ISO8601"  # Time format for JSON logs
     unify_fields: true
   # Uncomment below sections as needed for other formats
 #  cef:
 #    delimiter: "\n"  # Delimiter used to separate CEF events
-#    time_format: "MM dd yyyy HH:mm:ss"  # Time format for CEF logs
-#    unify_fields: true
+#    time_format: "ISO8601"  # Time format for CEF logs
 #    severity_format: 1
 #    syslog_header:
 #      generate_header: true  # Enable or disable the generation of syslog header
 #      host: "product"  # Source of the host field in syslog header
 #  leef:
 #    delimiter: "\n"  # Delimiter used to separate LEEF events
-#    time_format: "MM dd yyyy HH:mm:ss"  # Time format for LEEF logs
-#    unify_fields: true
+#    time_format: "ISO8601"  # Time format for LEEF logs
 #    severity_format: 1
 #    syslog_header:
 #      generate_header: true  # Enable or disable the generation of syslog header
