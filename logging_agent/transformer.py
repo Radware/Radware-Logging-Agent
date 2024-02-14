@@ -5,6 +5,7 @@ from logging_agent.field_mappings import FieldMappings
 import logging_agent.cloud_waap.cloudwaap_enrich as cloud_waap_enrich
 from logging_agent.app_info import supported_features
 from logging_agent.logging_config import get_logger
+import time
 from logging_agent.config_reader import Config
 
 
@@ -31,10 +32,13 @@ class Transformer:
         self.output_format = self.config['output']['output_format']
         self.product = product
 
-    def transform_content(self, data, data_fields, batch_mode, format_options):
+    def transform_content(self, data, data_fields, format_options):
+        output_format = self.config['output']['output_format']
         log_type = data_fields.get('log_type', '')
         metadata = data_fields.get('metadata', {})
-
+        delimiter = self.config['formats'][output_format].get('delimiter', '\n')
+        compatibility_mode = self.config['output'].get('compatibility_mode', None)
+        batch_mode = self.config['output'].get('batch', False) if output_format != "udp" else False
         transformed_logs = []
         self.logger.debug(f"Transforming data to {self.output_format}")
 
@@ -52,6 +56,8 @@ class Transformer:
                         self.logger.error(f"No conversion function found for output format: {self.output_format} and product {self.product}")
                         return None
                 else:
+                    if compatibility_mode:
+                        enriched_event = self.compatibility_mode(enriched_event, log_type)
                     transformed_log = json.dumps(enriched_event)
 
                 transformed_logs.append(transformed_log)
@@ -59,7 +65,7 @@ class Transformer:
                 self.logger.error(f"Unsupported output format: {self.output_format} for product {self.product}")
                 return None
 
-        return '\n'.join(transformed_logs) if batch_mode else transformed_logs
+        return delimiter.join(transformed_logs) if batch_mode else transformed_logs
 
     def enrich_event(self, event, log_type, format_options, metadata):
         """
@@ -111,5 +117,20 @@ class Transformer:
             conversion_func = None
 
         return conversion_func
+
+
+    def compatibility_mode(self, log, log_type):
+        output_format = self.config['output']['output_format']
+        compatibility_mode = self.config['output'].get('compatibility_mode', None)
+        if compatibility_mode == "Splunk HEC":
+            splunk_log = {}
+            # Convert current time to epoch seconds. The int() conversion truncates the microseconds.
+            splunk_log['time'] = int(time.time())
+            splunk_log['source'] = self.product
+            splunk_log['sourcetype'] = log_type
+            splunk_log['event'] = log
+            return splunk_log
+        else:
+            return log
 
 

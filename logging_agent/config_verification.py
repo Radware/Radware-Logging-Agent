@@ -47,6 +47,31 @@ def verify_agent_config(agent_config):
         if log_type not in supported_log_types:
             logger.error(f"Unsupported log type: {log_type} for product: {product} in agent {agent_config['name']}")
             return False
+    # Dynamically check compatibility mode requirements
+    compatibility_mode = agent_config.get('output', {}).get('compatibility_mode')
+    if compatibility_mode is not None:
+        # Check if the compatibility mode is supported for the product
+        if compatibility_mode not in supported_features[product].get('compatibility_mode', []):
+            logger.error(
+                f"The product '{product}' in agent {agent_config['name']} does not support {compatibility_mode} compatibility mode.")
+            return False
+
+        # Verify the requirements for the specified compatibility mode
+        requirements = supported_features[product].get('compatibility_mode_requirements', {}).get(compatibility_mode,
+                                                                                                  {}).get('output', {})
+        output_type = agent_config.get('output', {}).get('type')
+        output_format = agent_config.get('output', {}).get('output_format')
+
+        # Check output type and format against requirements
+        if output_type not in requirements.get('type', []) or output_format not in requirements.get('output_format',
+                                                                                                    []):
+            logger.error(
+                f"The agent {agent_config['name']} with product '{product}' does not meet  {compatibility_mode}"
+                f" requirements: output type must be one of {requirements.get('type', [])}"
+                f" and output format must be one of {requirements.get('output_format', [])}."
+            )
+            return False
+
     return True
 
 def verify_output_config(output_config):
@@ -73,11 +98,6 @@ def verify_tls_config(tls_config):
 
     return True
 
-def verify_http_https_config(http_config):
-    if not isinstance(http_config.get('batch', False), bool):
-        logger.error("Invalid batch configuration in HTTP/HTTPS settings.")
-        return False
-    return True
 
 def verify_general_config(general_config):
     for key in ['output_directory', 'log_directory']:
@@ -152,10 +172,6 @@ def verify_configuration(config, agents_config):
     if 'tls' in config and not verify_tls_config(config['tls']):
         return False
 
-    # Verify HTTP/HTTPS configuration
-    for protocol in ['http', 'https']:
-        if protocol in config and not verify_http_https_config(config[protocol]):
-            return False
 
     if not verify_selected_output_config(config['output'], config['formats']):
         return False

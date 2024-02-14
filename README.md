@@ -54,11 +54,16 @@ Define settings for each log collection agent.
 
 ## Output Configuration
 
-Configure how and where processed logs are sent.
+Customize how logs are formatted and where they are sent after processing.
 
-- **output_format**: Choose the format for the output logs. Supported formats: `json`, `cef`, `leef`.
-- **type**: Select the transport protocol for sending logs. Options: `http`, `https`, `tcp`, `udp`, `tls`.
-- **destination**: Specify the destination where logs are to be sent, including the port if necessary.
+- **output_format**: Choose the format for the output logs. Options: `json`, `cef`, `leef`. This determines how logs are structured before being sent.
+- **type**: Select the transport protocol for sending logs. Options: `http`, `https`, `tcp`, `udp`, `tls`. This choice affects the delivery method of the log data.
+- **destination**: Define the endpoint for log delivery, format dependent on the chosen `type`. This is where the logs will be sent after processing.
+- **batch**: Enable or disable batch processing of logs. When enabled, logs are grouped into batches before being sent, which can increase efficiency for certain output types. Note: This setting is particularly relevant for `http` and `https` types where batching can reduce the number of outbound requests.
+- **compatibility_mode**: Set the log forwarding format compatibility mode. 
+  - Options include "Splunk HEC" and "none". This setting adjusts the log formatting and transmission to be compatible with specific external systems.
+  - Requirements for compatibility modes: 
+    - "Splunk HEC" `type` must be configured as either `http` or `https` and `output_format` as `json`. This mode optimizes the log data for ingestion by Splunk's HTTP Event Collector, adhering to its specific requirements for data format and transmission protocol.
 
 ## Format-Specific Configurations
 

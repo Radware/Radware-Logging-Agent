@@ -8,7 +8,15 @@ supported_features = {
         },
         "supported_conversions": ['cef', 'leef', "json"],
         "supported_log_types": ['CSP', "Access", "WAF", "Bot", "DDoS", "WebDDoS"],
-        "supported_input_type": ['sqs']
-
+        "supported_input_type": ['sqs'],
+        "compatibility_mode": ['Splunk HEC'],
+        "compatibility_mode_requirements": {
+            "Splunk HEC": {
+                "output": {
+                    "type": ['http', 'https'],
+                    "output_format": ['json']
+                }
+            }
+        }
     }
 }
