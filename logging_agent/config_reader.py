@@ -69,7 +69,27 @@ class Config:
             self.config['general'] = self.config.get('general', {})
             self.config['aws_credentials'] = self.config.get('aws_credentials', {})
             self.config['output'] = self.config.get('output', {})
+            output_type = self.config['output']['type']
             self.config['formats'] = self.config.get('formats', {})
+            # Check if 'compatibility_mode' exists and is not None
+            if 'compatibility_mode' in self.config['output']:
+                # Check if the value is of type str and equals "none" (case-insensitive)
+                if (isinstance(self.config['output']['compatibility_mode'], str) and
+                        self.config['output']['compatibility_mode'].lower() == "none"):
+                    self.config['output']['compatibility_mode'] = None
+            else:
+                # If 'compatibility_mode' does not exist, set it to None
+                self.config['output']['compatibility_mode'] = None
+
+            # Set output type defaults
+            type_config = self.config.get(output_type, None)
+            if type_config == None:
+                self.config[output_type] = {}
+                if output_type in ['http', 'https']:
+                    self.config[output_type]['authentication'] = {}
+                    self.config[output_type]['authentication']['auth_type'] = None
+                if output_type == 'https':
+                    self.config[output_type]['verify'] = False
             # Additional normalization for TLS configuration paths
             tls_config = self.config.get('tls', {})
             if tls_config.get('verify', False):
@@ -138,17 +158,16 @@ class Config:
             combined_config['aws_credentials'] = self.config['aws_credentials']
             combined_config['output'] = self.config['output']
             combined_config['formats'] = self.config['formats']
+            product = combined_config['product']
             output_type = self.config['output'].get('type')
             combined_config[output_type] = self.config.get(output_type, {})
 
             # Define default settings
             defaults = {
-                'tls': {'batch': False, 'verify': False, 'ca_cert': '', 'client_cert': '', 'client_key': ''},
-                'http': {'batch': False, 'authentication': {'auth_type': 'none'}, 'custom_headers': {}},
-                'https': {'batch': False, 'verify': False, 'ca_cert': '', 'client_cert': '', 'client_key': '',
+                'tls': {'verify': False, 'ca_cert': '', 'client_cert': '', 'client_key': ''},
+                'http': {'authentication': {'auth_type': 'none'}, 'custom_headers': {}},
+                'https': {'verify': False, 'ca_cert': '', 'client_cert': '', 'client_key': '',
                           'authentication': {'auth_type': 'none'}, 'custom_headers': {}},
-                'udp': {'batch': False},
-                'tcp': {'batch': False}
             }
 
             # Merge configurations carefully, with special handling for nested structures
@@ -246,7 +265,17 @@ class Config:
     def validate_destination(self):
         # Validate and parse destination for output
         destination = self.config['output'].get('destination', '')
-        url_parse = urlparse(destination)
+        output_type = self.config['output'].get('type', '')
+
+        # Temporarily prepend the scheme for proper urlparse handling if it's HTTP/HTTPS
+        if output_type in ['http', 'https'] and not (
+                destination.startswith('http://') or destination.startswith('https://')):
+            scheme = f"{output_type}://"
+            destination_temp = scheme + destination
+        else:
+            destination_temp = "http://" + destination
+
+        url_parse = urlparse(destination_temp)
         default_ports = {
             'http': 80,
             'https': 443,
@@ -255,25 +284,10 @@ class Config:
             'tls': 6514
         }
 
-        if url_parse.scheme in ['http', 'https']:
-            # Strip the port from the destination and update the port separately
-            self.config['output']['destination'] = url_parse.hostname
-            port = url_parse.port if url_parse.port else default_ports[url_parse.scheme]
-            self.config['output']['port'] = port
-        else:
-            # Extract port for non-HTTP/HTTPS schemes
-            match = re.search(r':(\d+)$', destination)
-            if match:
-                # If a port is found, strip it from the destination
-                port = int(match.group(1))
-                self.config['output']['destination'] = destination.replace(f':{port}', '')
-            else:
-                # Use default port if no port is specified in the destination
-                port = default_ports.get(self.config['output']['type'], 514)
-                self.config['output']['destination'] = destination
+        # Update configuration with parsed values
+        self.config['output']['destination'] = url_parse.hostname
+        self.config['output']['port'] = url_parse.port if url_parse.port else default_ports.get(output_type, 514)
+        self.config['output']['uri'] = url_parse.path if url_parse.path else None
 
-            if not (0 < port < 65536):
-                raise ValueError(f"Invalid port: {port}. Must be an integer between 1 and 65535.")
-
-            self.config['output']['port'] = port
-
+        if not (0 < self.config['output']['port'] < 65536):
+            raise ValueError(f"Invalid port: {self.config['output']['port']}. Must be an integer between 1 and 65535.")

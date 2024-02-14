@@ -144,7 +144,6 @@ class DataProcessor:
             object: Transformed data.
         """
         output_type = self.config['output']['type']
-        batch_mode = self.config[output_type].get('batch', False)
         output_format = self.config['output']['output_format']
         format_options = self.config['formats'].get(output_format, {})
 
@@ -156,7 +155,6 @@ class DataProcessor:
         transformed_data = transformer.transform_content(
             data=data,
             data_fields=data_fields,
-            batch_mode=batch_mode,
             format_options=format_options
         )
 
@@ -177,7 +175,8 @@ class DataProcessor:
         output_type = self.config['output']['type']
         destination = self.config['output']['destination']
         port = self.config['output'].get('port', None)
-        batch_mode = self.config[output_type].get('batch', False)
+        uri = self.config['output'].get('uri', None)
+        batch_mode = self.config['output'].get('batch', False)
         authentication = self.config[output_type].get('authentication', {})
         custom_headers = self.config[output_type].get('custom_headers', {})
         delimiter = self.config['formats'][output_format].get('delimiter', '\n')
@@ -187,6 +186,7 @@ class DataProcessor:
             'output_format': output_format,
             'output_type': output_type,
             'port': port,
+            'uri': uri,
             'batch_mode': batch_mode,
             'authentication': authentication,
             'custom_headers': custom_headers,

@@ -32,6 +32,7 @@ class Sender:
     def send_http(data, destination_config):
         destination = destination_config['destination']
         port = destination_config.get('port')
+        uri = destination_config.get('uri')
         output_format = destination_config.get('output_format', 'json')
         batch_mode = destination_config.get('batch_mode', False)
         output_type = destination_config['output_type']  # 'http' or 'https'
@@ -44,6 +45,8 @@ class Sender:
             destination = f"{output_type}://{destination}"  # Prepend with output_type
             if port:
                 destination += f":{port}"
+            if uri:  # Append uri if it exists
+                destination += uri
 
         if output_format == 'json':
             headers = {'Content-Type': 'application/json'}
@@ -78,12 +81,12 @@ class Sender:
 
         try:
             if batch_mode:
-                response = session.post(destination, json=data, headers=headers, auth=auth)
+                response = session.post(destination, data=data, headers=headers, auth=auth)
                 response.raise_for_status()
                 logger.info(f"Batch data sent successfully to {destination}")
             else:
                 for event in data:
-                    response = session.post(destination, json=event, headers=headers, auth=auth)
+                    response = session.post(destination, data=event, headers=headers, auth=auth)
                     response.raise_for_status()
                 logger.info(f"All events sent successfully to {destination}")
             return True
@@ -104,6 +107,8 @@ class Sender:
         port = destination_config['port']
         output_format = destination_config.get('output_format', 'json')
         delimiter = destination_config.get('delimiter', '\n')
+        batch_mode = destination_config.get('batch_mode', False)
+
 
         try:
             # Establish a socket connection
@@ -111,18 +116,13 @@ class Sender:
             sock.connect((destination, port))
             logger.debug(f"Connected to {destination}:{port}")
 
-            for event in data:
-                # Check the format and prepare the event for sending
-                if output_format.lower() in ["json", "cef", "leef"]:
+            if batch_mode:
+                # Combine all events into a single string separated by the delimiter
+                sock.sendall(data.encode('utf-8'))
+            else:
+                for event in data:
                     event_str = event + delimiter
-                else:
-                    logger.error(f"Unsupported output format: {output_format}")
-                    sock.close()
-                    return False
-
-                # Send the event as bytes
-                sock.sendall(event_str.encode('utf-8'))
-                logger.debug(f"Sent event to {destination}:{port}")
+                    sock.sendall(event_str.encode('utf-8'))
 
             # Close the socket connection after sending all events
             sock.close()
@@ -145,6 +145,7 @@ class Sender:
         port = destination_config['port']
         output_format = destination_config.get('output_format', 'json')
         delimiter = destination_config.get('delimiter', '\n')
+
 
         try:
             # Create a UDP socket
@@ -185,6 +186,8 @@ class Sender:
         output_format = destination_config.get('output_format', 'json')
         delimiter = destination_config.get('delimiter', '\n')
         tls_config = destination_config.get('tls_config', {})
+        batch_mode = destination_config.get('batch_mode', False)
+
 
         try:
             # Establish a raw socket connection
@@ -207,18 +210,15 @@ class Sender:
             tls_sock = context.wrap_socket(raw_sock, server_hostname=destination)
             logger.debug(f"Connected to {destination}:{port} over TLS")
 
-            for event in data:
-                # Prepare the event for sending
-                if output_format.lower() in ["json", "cef", "leef"]:
+            if batch_mode:
+                # If batch mode, send all data as one concatenated string
+                batch_data = delimiter.join(data)
+                tls_sock.sendall(batch_data.encode('utf-8'))
+            else:
+                # If not batch mode, iterate through each event and send individually
+                for event in data:
                     event_str = event + delimiter
-                else:
-                    logger.error(f"Unsupported output format: {output_format}")
-                    tls_sock.close()
-                    return False
-
-                # Send the event as bytes over TLS
-                tls_sock.sendall(event_str.encode('utf-8'))
-                logger.debug(f"Sent event to {destination}:{port} over TLS")
+                    tls_sock.sendall(event_str.encode('utf-8'))
 
             # Close the TLS socket connection after sending all events
             tls_sock.close()
