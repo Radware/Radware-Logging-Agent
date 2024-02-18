@@ -296,11 +296,11 @@ class CloudWAAPProcessor:
             enrichment = log.get('enrichmentContainer')
             if enrichment:
                 mappings = {
-                    "geoLocation.countryCode": "country_code",
-                    "applicationId": "application_id",
-                    "contractId": "contract_id",
-                    "tenant": "tenant_id",
-                    "owaspCategory2021": "owasp_category"
+                    "geoLocation.countryCode": "countryCode",
+                    "applicationId": "applicationId",
+                    "contractId": "contractId",
+                    "tenant": "tenantId",
+                    "owaspCategory2021": "owaspCategory"
                 }
 
                 for original_key, new_key in mappings.items():

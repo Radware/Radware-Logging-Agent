@@ -15,10 +15,11 @@ class FieldMappings:
         return cls._instance
 
     @classmethod
-    def load_field_mappings(cls, products, output_format):
+    def load_field_mappings(cls, products, output_format, compatibility_mode):
         base_dir = pathlib.Path(__file__).parent.resolve()
         for product in products:
-            if output_format in supported_features[product]['mapping']['required_for']:
+            if (output_format in supported_features[product]['mapping']['required_for'] or
+                    compatibility_mode in supported_features[product]['mapping']['compatibility_mode_conversion']):
                 mapping_file_path = os.path.join(base_dir, supported_features[product]['mapping']['path'])
                 try:
                     with open(mapping_file_path, 'r') as file:

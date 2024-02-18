@@ -2,6 +2,21 @@
 
 RLA is a log processing tool designed to streamline the integration of Radware products with Security Information and Event Management (SIEM) systems. In its first major release, RLA is focuses on robust support of Radware Cloud WAAP logs, utilizing the Cloud WAAP's capability to export security and access logs to an AWS S3 Bucket.
 
+## Current Version
+
+**Version 1.1.1** - Released on 18th February 2024
+
+## Release Notes
+
+### Version 1.1.1 - 18/02/2024
+- Homogenized fields are now all styled uniformly using camel casing.
+
+### Version 1.1.0 - 14/02/2024
+- Added Batch configuration for TCP, TLS, HTTP, and HTTPS.
+- Added Compatibility mode with Splunk HEC Support.
+
+### Version 1.0.0 - 10/02/2024
+- Initial Release.
 
 ## Features
 
@@ -212,28 +227,28 @@ This section provides examples of logs processed by the Radware Logging Agent, s
 #### enriched(homogenized) JSON
 ```json
 {
-    "accept_language": "en-US,en;q=0.9",
+    "acceptLanguage": "en-US,en;q=0.9",
     "action": "Allowed",
-    "application_id": "cb69699b-2f53-41f2-87ad-9c5810313a74",
-    "application_name": "MyApp",
-    "country_code": "US",
-    "destination_ip": "66.22.79.113",
-    "destination_port": 443,
+    "applicationId": "cb69699b-2f53-41f2-87ad-9c5810313a74",
+    "applicationName": "MyApp",
+    "countryCode": "US",
+    "destinationIp": "66.22.79.113",
+    "destinationPort": 443,
     "directory": "/user",
     "host": "myapp.radware.net",
-    "http_bytes_in": 535,
-    "http_bytes_out": 7607,
-    "http_method": "POST",
-    "http_version": "HTTP/1.1",
-    "log_type": "Access",
+    "httpBytesIn": 535,
+    "httpBytesOut": 7607,
+    "httpMethod": "POST",
+    "httpVersion": "HTTP/1.1",
+    "logType": "Access",
     "protocol": "https",
     "product": "Cloud WAAP",
     "request": "https://myapp.radware.net/user/login",
-    "request_time": "0.114",
-    "response_code": 200,
-    "source_ip": "10.1.154.77",
-    "source_port": 43834,
-    "tenant_name": "MyAccount",
+    "requestTime": "0.114",
+    "responseCode": 200,
+    "sourceIp": "10.1.154.77",
+    "sourcePort": 43834,
+    "tenantName": "MyAccount",
     "time": "2024-27-02T00:49:40.000Z",
     "uri": "/user/login",
     "user_agent": "Mozilla/5.0 (Windows NT 6.1; Trident/7.0; rv:11.0) like Gecko"
@@ -293,21 +308,21 @@ This section provides examples of logs processed by the Radware Logging Agent, s
 ```json
 {
     "action": "Blocked",
-    "application_id": "cb69699b-2f53-41f2-87ad-9c5810313a74",
-    "application_name": "MyApp",
+    "applicationId": "cb69699b-2f53-41f2-87ad-9c5810313a74",
+    "applicationName": "MyApp",
     "appPath": "/api/auth",
     "category": "API Security Violation",
-    "contract_id": "63qwe674-e83d-4fae-909d-84b309ba0cd9",
+    "contractId": "63qwe674-e83d-4fae-909d-84b309ba0cd9",
     "cookie": "uzmx=17063028541647068335-3f843db00cc4acfa31; AWSALB=5CC+YSlWg; AWSALBCORS=5CC",
-    "country_code": "US",
-    "destination_ip": "10.160.218.10",
-    "destination_port": "54009",
+    "countryCode": "US",
+    "destinationIp": "10.160.218.10",
+    "destinationPort": "54009",
     "directory": "/api",
     "headers": "Accept-Encoding: gzip; Host: myapp.radware.net; Content-Length: 0; User-Agent: Mozilla/5.0 (Windows NT 6.3; Win64; x64; rv:87.0) Gecko/20100101 Firefox/87.0; accept: application/json; x-remote-ip: 10.160.218.10; content-type: application/json; ShieldSquare-Response: 0",
     "host": "myapp.radware.net",
-    "http_method": "POST",
-    "http_version": "HTTP/1.1", 
-    "log_type": "WAF",
+    "httpMethod": "POST",
+    "httpVersion": "HTTP/1.1", 
+    "logType": "WAF",
     "name": "API request method not allowed",
     "protocol": "HTTP",
     "product": "Cloud WAAP",
@@ -317,16 +332,16 @@ This section provides examples of logs processed by the Radware Logging Agent, s
     "role": "public",
     "security": true,
     "severity": "High",
-    "source_ip": "10.160.218.10",
+    "sourceIp": "10.160.218.10",
     "source_port": "59289",
     "targetModule": "API Security Module",
-    "tenant_id": "75292c55-9212-4714-babe-851b29de7cab",
-    "tenant_name": "MyAccount",
+    "tenantId": "75292c55-9212-4714-babe-851b29de7cab",
+    "tenantName": "MyAccount",
     "time": "2024-26-01T00:49:40.000Z",
     "trans_id": "2669954742",
     "uri": "/api/auth",
     "user": "public",
-    "user_agent": "Mozilla/5.0 (Windows NT 6.3; Win64; x64; rv:87.0) Gecko/20100101 Firefox/87.0",
+    "userAgent": "Mozilla/5.0 (Windows NT 6.3; Win64; x64; rv:87.0) Gecko/20100101 Firefox/87.0",
     "vhost": "myapp75292c55-9212.radware.net",
     "violationType": "API Security Violation",
     "webApp": "App_MyAccount_MyApp"

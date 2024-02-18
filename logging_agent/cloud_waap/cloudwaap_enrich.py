@@ -22,18 +22,11 @@ def enrich_access_log(event, format_options, output_format, metadata, log_type):
     try:
         format_option = format_options.get('unify_fields', True)
         if output_format == ['json']:
-            event['log_type'] = log_type
+            event['logType'] = log_type
             event['product'] = "Cloud WAAP"
 
         if format_option or output_format in ['cef', 'leef']:
-            if event.get('cookie') == "-":
-                event.pop('cookie', None)
 
-            if event.get('referrer') == "-":
-                event.pop('referrer', None)
-
-            if 'destinationPort' in event:
-                event['destination_port'] = event.pop('destinationPort')
 
             output_time_format = format_options.get('time_format', "epoch_ms_str")
             access_input_format = '%d/%b/%Y:%H:%M:%S %z'
@@ -44,9 +37,6 @@ def enrich_access_log(event, format_options, output_format, metadata, log_type):
                     output_format=output_time_format
                 )
 
-            if event.get('country_code') in {"", "--"}:
-                event.pop('country_code', None)
-
             if all(key in event for key in ['request', 'protocol', 'host', 'http_method']):
                 method, full_url, http_version, uri = CloudWAAPProcessor.parse_access_request(
                     event['request'],
@@ -55,6 +45,41 @@ def enrich_access_log(event, format_options, output_format, metadata, log_type):
                     event['http_method']
                 )
                 event.update({'http_method': method, 'request': full_url, 'http_version': http_version, 'uri': uri})
+
+            event['name'] = "Access Log"
+            event['severity'] = "Info"
+            event['category'] = "Access Log"
+            event['reason'] = "Access Log"
+            for key, new_key in {'accept_language': 'acceptLanguage',
+                                 'application_id': 'applicationId',
+                                 "application_name": "applicationName",
+                                 "country_code": "countryCode",
+                                 "source_ip": "sourceIp",
+                                 "source_port": "sourcePort",
+                                 "destination_ip": "destinationIp",
+                                 "destination_port": "destinationPort",
+                                 "host": "host",
+                                 "protocol": "uri",
+                                 "referrer": "referrer",
+                                 "cookie": "cookie",
+                                 "directory": "directory",
+                                 "http_bytes_in": "httpBytesIn",
+                                 "http_bytes_out": "httpBytesOut",
+                                 "http_method": "httpMethod",
+                                 "http_version": "httpVersion",
+                                 "request_time": "requestTime",
+                                 "response_code": "responseCode",
+                                 "tenant_name": "tenantName",
+                                 "user_agent": "userAgent",
+                                 "x-forwarded-for": "xForwardedFor"
+                                 }.items():
+                if key in event:
+                    if event[key] == "" or event[key] == "-" or event[key] == " - " or event[key] == "--":
+                        del event[key]
+                    else:
+                        event[new_key] = event.pop(key)
+
+
 
         return event
 
@@ -82,32 +107,26 @@ def enrich_waf_log(event, format_options, output_format, metadata, log_type):
     try:
         tenant_name = metadata.get('tenant_name', '')
         if tenant_name:
-            event['tenant_name'] = tenant_name
+            event['tenantName'] = tenant_name
         format_option = format_options.get('unify_fields', True)
         if output_format == "json":
-            event['log_type'] = log_type
+            event['logType'] = log_type
             event['product'] = "Cloud WAAP"
 
         if format_option or output_format in ['cef', 'leef']:
             application_name = metadata.get('application_name', '')
             event["time"] = event.pop("receivedTimeStamp", "")
-            event["application_name"] = event.pop("applicationName", application_name)
+            event["applicationName"] = event.pop("applicationName", application_name)
 
             # Homogenize IP and port fields
-            if 'sourceIp' in event:
-                event['source_ip'] = event.pop('sourceIp')
             if 'externalIp' in event:
-                event['destination_ip'] = event.pop('externalIp')
-            if 'sourcePort' in event:
-                event['source_port'] = event.pop('sourcePort')
-            if 'destinationPort' in event:
-                event['destination_port'] = event.pop('destinationPort')
+                event['destinationIp'] = event.pop('externalIp')
             if 'destinationIp' in event:
                 del event['destinationIp']
 
             # Homogenize other fields
             for key, new_key in {'RuleID': 'ruleId', 'URI': 'uri', 'title': 'name', 'violationCategory': 'category',
-                                 'violationDetails': 'reason', 'transId': 'trans_id'}.items():
+                                 'violationDetails': 'reason'}.items():
                 if key in event:
                     event[new_key] = event.pop(key)
 
@@ -131,6 +150,17 @@ def enrich_waf_log(event, format_options, output_format, metadata, log_type):
                 enriched_log = CloudWAAPProcessor.enrich_waf_log(event, *parsed_values)
                 event.update(enriched_log)
 
+            if 'http_method' in event:
+                event['httpMethod'] = event.pop('http_method')
+
+            if 'http_version' in event:
+                event['httpVersion'] = event.pop('http_version')
+
+            if 'user_agent' in event:
+                event['userAgent'] = event.pop('user_agent')
+
+            if 'response_code' in event:
+                event['responseCode'] = event.pop('response_code')
         return event
 
     except Exception as e:
@@ -155,13 +185,13 @@ def enrich_bot_log(event, format_options, output_format, metadata, log_type):
     try:
         key = metadata.get('key', '')
         application_id = CloudWAAPProcessor.identify_application_id(key, "Bot")
-        event['application_id'] = application_id
+        event['applicationId'] = application_id
         tenant_name = metadata.get('tenant_name', '')
         if tenant_name:
-            event['tenant_name'] = tenant_name
+            event['tenantName'] = tenant_name
         format_option = format_options.get('unify_fields', True)
         if output_format == 'json':
-            event['log_type'] = log_type
+            event['logType'] = log_type
             event['product'] = "Cloud WAAP"
 
         if format_option or output_format in ['cef', 'leef']:
@@ -176,8 +206,12 @@ def enrich_bot_log(event, format_options, output_format, metadata, log_type):
                 )
 
             # Homogenize IP and port fields
-            for key, new_key in {'destinationIP': 'destination_ip', 'ip': 'source_ip',
-                                 'destinationPort': 'destination_port', 'ua': 'user_agent'}.items():
+            for key, new_key in {'destinationIP': 'destinationIp', 'ip': 'sourceIp', 'ua': 'userAgent',
+                                 'session_cookie': 'sessionCookie',
+                                 'policy_id': 'policyId',
+                                 'signature_pattern': 'signaturePattern',
+                                 'country_code': 'countryCode',
+                                 'application_name': 'applicationName'}.items():
                 if key in event:
                     event[new_key] = event.pop(key)
 
@@ -194,7 +228,7 @@ def enrich_bot_log(event, format_options, output_format, metadata, log_type):
             if 'site' in event:
                 event['host'] = event.pop('site')
             if 'tid' in event:
-                event['trans_id'] = event.pop('tid')
+                event['transId'] = event.pop('tid')
 
             # Parse and update URL-related fields
             if 'url' in event:
@@ -224,16 +258,15 @@ def enrich_ddos_log(event, format_options, output_format, metadata, log_type):
     try:
         tenant_name = metadata.get('tenant_name', '')
         if tenant_name:
-            event['tenant_name'] = tenant_name
+            event['tenantName'] = tenant_name
         format_option = format_options.get('unify_fields', True)
         if output_format == 'json':
-            event['log_type'] = log_type
+            event['logType'] = log_type
             event['product'] = "Cloud WAAP"
 
         if format_option or output_format in ['cef', 'leef']:
             # Homogenize IP and port fields
-            for key, new_key in {'sourceIP': 'source_ip', 'destinationIP': 'destination_ip',
-                                 'sourcePort': 'source_port', 'destinationPort': 'destination_port'}.items():
+            for key, new_key in {'sourceIP': 'sourceIp', 'destinationIP': 'destinationIp'}.items():
                 if key in event:
                     event[new_key] = event.pop(key)
 
@@ -243,10 +276,10 @@ def enrich_ddos_log(event, format_options, output_format, metadata, log_type):
 
             # Rename 'ID' to 'trans_id'
             if 'ID' in event:
-                event['trans_id'] = event.pop('ID')
+                event['transId'] = event.pop('ID')
 
             # Update 'applicationName' from metadata if available
-            event["application_name"] = event.pop("applicationName", metadata.get('application_name', ''))
+            event["applicationName"] = event.pop("applicationName", metadata.get('application_name', ''))
 
             # Transform time field based on format options
             output_time_format = format_options.get('time_format', "epoch_ms_str")
@@ -290,15 +323,15 @@ def enrich_webddos_log(event, format_options, output_format, metadata, log_type)
     try:
         tenant_name = metadata.get('tenant_name', '')
         if tenant_name:
-            event['tenant_name'] = tenant_name
+            event['tenantName'] = tenant_name
         format_option = format_options.get('unify_fields', True)
         if output_format == 'json':
-            event['log_type'] = log_type
+            event['logType'] = log_type
             event['product'] = "Cloud WAAP"
 
         if format_option or output_format in ['cef', 'leef']:
             # Update application name from metadata if available
-            event["application_name"] = event.pop("applicationName", metadata.get('application_name', ''))
+            event["applicationName"] = event.get("applicationName", metadata.get('application_name', ''))
 
             # Transform various time fields based on format options
             time_fields = {'startTime': 'startTime', 'endTime': 'endTime'}
@@ -322,7 +355,7 @@ def enrich_webddos_log(event, format_options, output_format, metadata, log_type)
 
             # Rename 'attackID' to 'trans_id'
             if 'attackID' in event:
-                event['trans_id'] = event.pop('attackID')
+                event['transId'] = event.pop('attackID')
 
             # Combine 'attackVector' into 'reason', 'name', and 'category'
             if 'attackVector' in event:
@@ -372,17 +405,17 @@ def enrich_csp_log(event, format_options, output_format, metadata, log_type):
     try:
         tenant_name = metadata.get('tenant_name', '')
         if tenant_name:
-            event['tenant_name'] = tenant_name
+            event['tenantName'] = tenant_name
         format_option = format_options.get('unify_fields', True)
         if output_format == 'json':
-            event['log_type'] = log_type
+            event['logType'] = log_type
             event['product'] = "Cloud WAAP"
 
         if format_option or output_format in ['cef', 'leef']:
             application_name = metadata.get('application_name', '')
             event["time"] = event.pop("receivedTimeStamp", "")
 
-            event["application_name"] = event.pop("applicationName", application_name)
+            event["applicationName"] = event.pop("applicationName", application_name)
 
             if "applicationId" in event:
                 del event['applicationId']
@@ -394,11 +427,13 @@ def enrich_csp_log(event, format_options, output_format, metadata, log_type):
                 event['reason'] = event.pop('details')
 
             if 'transId' in event:
-                event['trans_id'] = event.pop('transId')
+                event['transId'] = event.pop('transId')
 
             if 'externalIp' in event:
                 del event['externalIp']
 
+            if 'target_module' in event:
+                event['targetModule'] = event.pop('target_module')
             output_time_format = format_options.get('time_format', "epoch_ms_str")
             if 'time' in event:
                 if event['time']:

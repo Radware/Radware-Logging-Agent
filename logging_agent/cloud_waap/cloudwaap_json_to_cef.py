@@ -283,6 +283,13 @@ def json_to_cef(log, log_type, product, field_mappings, format_options):
         if generate_header:
             syslog_header = construct_cef_syslog_header(format_options, log)
 
+        # Remove redundant fields
+        if 'severity' in log:
+            del log['severity']
+
+        if 'name' in log:
+            del log['name']
+
         extensions = []
         # Process static mappings first
         for json_key, cef_key in static_mapping.items():
@@ -290,13 +297,6 @@ def json_to_cef(log, log_type, product, field_mappings, format_options):
             if is_value_valid(value):
                 sanitized_value = sanitize_extended_field_value(value)
                 extensions.append(f"{cef_key}={sanitized_value}")
-
-        # Remove redundant fields
-        if 'severity' in log:
-            del log['severity']
-
-        if 'name' in log:
-            del log['name']
 
         # Process remaining fields for dynamic mapping
         for json_key, value in log.items():
