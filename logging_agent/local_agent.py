@@ -44,7 +44,8 @@ def start_local_agent():
 
     products = Config().get_all_products()
     output_format = config['output'].get('output_format', 'json')
-    FieldMappings.load_field_mappings(products, output_format)
+    compatibility_mode = config['output'].get('compatibility_mode', "none")
+    FieldMappings.load_field_mappings(products, output_format, compatibility_mode)
 
     # Load configurations for each agent and start them
     agents_config = [Config().get_agent_config(agent_name) for agent_name in Config().get_all_agent_names()]

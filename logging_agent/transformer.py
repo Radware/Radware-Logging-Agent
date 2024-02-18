@@ -31,33 +31,34 @@ class Transformer:
         self.field_mappings = FieldMappings.get_mapping_for_product(product)
         self.output_format = self.config['output']['output_format']
         self.product = product
+        self.compatibility_mode = self.config['output'].get('compatibility_mode', None)
 
     def transform_content(self, data, data_fields, format_options):
         output_format = self.config['output']['output_format']
         log_type = data_fields.get('log_type', '')
         metadata = data_fields.get('metadata', {})
         delimiter = self.config['formats'][output_format].get('delimiter', '\n')
-        compatibility_mode = self.config['output'].get('compatibility_mode', None)
         batch_mode = self.config['output'].get('batch', False) if output_format != "udp" else False
         transformed_logs = []
         self.logger.debug(f"Transforming data to {self.output_format}")
 
         requires_conversion = self.output_format in supported_features[self.product]["mapping"]["required_for"]
         is_supported_format = self.output_format in supported_features[self.product]["supported_conversions"]
-
+        compatibility_mode_conversion = (self.compatibility_mode in
+                                         supported_features[self.product]['compatibility_mode_conversion_function'])
         for event in data:
             enriched_event = self.enrich_event(event, log_type, format_options, metadata)
             if is_supported_format:
-                if requires_conversion:
+                if requires_conversion or compatibility_mode_conversion:
                     conversion_func = self.get_conversion_function()
                     if conversion_func:
                         transformed_log = conversion_func(enriched_event, log_type, self.product, self.field_mappings, format_options)
+                        if output_format == "json":
+                            transformed_log = json.dumps(transformed_log)
                     else:
                         self.logger.error(f"No conversion function found for output format: {self.output_format} and product {self.product}")
                         return None
                 else:
-                    if compatibility_mode:
-                        enriched_event = self.compatibility_mode(enriched_event, log_type)
                     transformed_log = json.dumps(enriched_event)
 
                 transformed_logs.append(transformed_log)
@@ -81,9 +82,6 @@ class Transformer:
         """
         enrichment_functions = getattr(self, f"{self.product}_enrichment_functions", {})
 
-        # Add log type for specific formats
-        if self.output_format == 'json':
-            event['log_type'] = log_type
 
         enrich_func = enrichment_functions.get(log_type)
         if enrich_func:
@@ -110,6 +108,10 @@ class Transformer:
                 from logging_agent.cloud_waap.cloudwaap_json_to_cef import json_to_cef as conversion_func
             elif self.output_format == "leef":
                 from logging_agent.cloud_waap.cloudwaap_json_to_leef import json_to_leef as conversion_func
+            elif self.output_format == "json" and self.compatibility_mode == "ecs":
+                from logging_agent.cloud_waap.cloudwaap_json_to_ecs import json_to_ecs as conversion_func
+            elif self.output_format == "json" and self.compatibility_mode == "Splunk HEC":
+                from logging_agent.cloud_waap.cloudwaap_json_to_splunk_hec import json_to_splunk_hec as conversion_func
             else:
                 conversion_func = None
         else:
@@ -118,19 +120,5 @@ class Transformer:
 
         return conversion_func
 
-
-    def compatibility_mode(self, log, log_type):
-        output_format = self.config['output']['output_format']
-        compatibility_mode = self.config['output'].get('compatibility_mode', None)
-        if compatibility_mode == "Splunk HEC":
-            splunk_log = {}
-            # Convert current time to epoch seconds. The int() conversion truncates the microseconds.
-            splunk_log['time'] = int(time.time())
-            splunk_log['source'] = self.product
-            splunk_log['sourcetype'] = log_type
-            splunk_log['event'] = log
-            return splunk_log
-        else:
-            return log
 
 
