@@ -3,24 +3,407 @@ import boto3
 from .logging_config import get_logger
 from .config_reader import Config
 from .app_info import supported_features
+import socket
+import ssl
+import requests
 
 logger = get_logger('config_verification')
 
 
+
+def test_tcp_connection(host, port, timeout=5, compatibility=None):
+    """
+    Tests TCP connectivity to a given host and port.
+
+    Args:
+        host (str): The hostname or IP address of the server.
+        port (int): The port number.
+        timeout (int): Timeout in seconds for the connection attempt.
+
+    Returns:
+        bool: True if the connection was successful, False otherwise.
+    """
+    if not host or not isinstance(port, int):
+        logger.error("Invalid host or port for TCP connection test.")
+        return False
+
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            logger.info(f"TCP connection to {host}:{port} successful.")
+            return True
+    except OSError as e:
+        logger.error(f"TCP connection to {host}:{port} failed: {e}")
+        return False
+
+
+def test_udp_connection(host, port, timeout=5, compatibility=None):
+    """
+    Tests UDP connectivity by attempting to send a dummy packet.
+
+    Args:
+        host (str): The hostname or IP address of the server.
+        port (int): The port number.
+        timeout (int): Timeout in seconds for sending the packet.
+
+    Returns:
+        bool: True if the dummy packet was sent successfully, False otherwise.
+    """
+    if not host or not isinstance(port, int):
+        logger.error("Invalid host or port for UDP connection test.")
+        return False
+
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.settimeout(timeout)
+            sock.sendto(b'', (host, port))  # Sending a dummy packet
+            logger.info(f"UDP dummy packet sent to {host}:{port} successfully.")
+            return True
+    except OSError as e:
+        logger.error(f"UDP dummy packet to {host}:{port} failed: {e}")
+        return False
+
+
+
+def test_tls_connection(host, port, verify=False, ca_cert=None, client_cert=None, client_key=None, timeout=5, compatibility=None):
+    """
+    Tests TLS connectivity with optional client and CA certificates and verification control.
+
+    Args:
+        host (str): The hostname or IP address of the server.
+        port (int): The port number.
+        verify (bool): Whether to verify the server's TLS certificate against the provided CA certificate.
+        ca_cert (str, optional): Path to the CA certificate to verify against if verify is True.
+        client_cert (str, optional): Path to the client certificate for mutual TLS authentication.
+        client_key (str, optional): Path to the client key for mutual TLS authentication.
+        timeout (int): Timeout in seconds for the connection attempt.
+        compatibility (str, optional): Special compatibility mode for the connectivity test.
+
+    Returns:
+        bool: True if the TLS connection was successful, False otherwise.
+    """
+    if not host or not isinstance(port, int):
+        logger.error("Invalid host or port for TLS connection test.")
+        return False
+
+    try:
+        # Create a default context with or without certificate verification
+        if verify:
+            context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH, cafile=ca_cert)
+        else:
+            # Verification disabled
+            context = ssl._create_unverified_context()
+
+        # Load client certificate and key for mutual TLS authentication, if provided
+        if client_cert and client_key:
+            context.load_cert_chain(certfile=client_cert, keyfile=client_key)
+
+        with socket.create_connection((host, port), timeout=timeout) as sock:
+            with context.wrap_socket(sock, server_hostname=host):
+                # Log success and return True
+                logger.info(f"TLS connection to {host}:{port} successful.")
+                return True
+    except OSError as e:
+        # Log failure and return False
+        logger.error(f"TLS connection to {host}:{port} failed: {e}")
+        return False
+
+
+def test_http_connection(url, headers=None, auth=None, compatibility=None):
+    """
+    Tests HTTP connectivity with optional headers and authentication, and special compatibility modes.
+
+    Args:
+        url (str): The full URL to test connectivity with.
+        headers (dict, optional): Custom headers for the request.
+        auth (tuple, optional): A tuple containing the username and password for Basic authentication.
+        compatibility (str, optional): Special compatibility mode for the connectivity test.
+
+    Returns:
+        bool: True if the connectivity test is successful, False otherwise.
+    """
+    try:
+        if compatibility == 'splunk hec':
+            # For Splunk HEC compatibility, perform a POST request with an empty body
+            response = requests.post(url, headers=headers, auth=auth, data='', timeout=5)
+            # Valid response is a 400 with a specific error message
+            return response.status_code == 400 and "No data" in response.json().get("text", "")
+        else:
+            # Default behavior with a GET request
+            response = requests.get(url, headers=headers, auth=auth, timeout=5)
+            return response.status_code == 200
+    except requests.RequestException as e:
+        logger.error(f"HTTP connectivity test failed: {e}")
+        return False
+
+
+def test_https_connection(url, headers=None, auth=None, verify=True, cert=None, compatibility=None):
+    """
+    Tests HTTPS connectivity with optional headers, authentication, SSL/TLS verification, and client certificates,
+    and special compatibility modes.
+
+    Args:
+        url (str): The full URL to test connectivity with.
+        headers (dict, optional): Custom headers for the request.
+        auth (tuple, optional): A tuple containing the username and password for Basic authentication.
+        verify (bool or str, optional): Either a boolean, in which case it controls whether to verify the server's TLS certificate,
+                                        or a string, in which case it must be a path to a CA bundle to use. Defaults to True.
+        cert (str or tuple, optional): If String, the path to an SSL client cert file (.pem).
+                                       If Tuple, ('cert', 'key') pair.
+        compatibility (str, optional): Special compatibility mode for the connectivity test.
+
+    Returns:
+        bool: True if the connectivity test is successful, False otherwise.
+    """
+    # Create a Session object to persist certain parameters across requests
+    session = requests.Session()
+
+    # Apply the optional parameters to the session
+    if headers:
+        session.headers.update(headers)
+    if auth:
+        session.auth = auth
+    if verify:
+        session.verify = verify  # CA bundle for server verification
+    if cert:
+        session.cert = cert  # Client certificate and optionally a key for client authentication
+
+    try:
+        if compatibility == 'splunk hec':
+            # For Splunk HEC compatibility, perform a POST request with an empty body
+            response = session.post(url, data='', timeout=5)
+            # Valid response is a 400 with a specific error message
+            return response.status_code == 400 and "No data" in response.json().get("text", "")
+        else:
+            # Default behavior with a GET request
+            response = session.get(url, timeout=5)
+            return response.status_code == 200
+    except requests.RequestException as e:
+        # Log any exception that occurs during the request
+        logger.error(f"HTTPS connectivity test failed: {e}")
+        return False
+
+# def verify_output_connectivity(config):
+#     """
+#     Verifies the connectivity based on the output configuration.
+#
+#     Args:
+#         output_config (dict): Output configuration from the user.
+#
+#     Returns:
+#         bool: True if the connectivity test is successful, False otherwise.
+#     """
+#     # Mapping output types to their respective test functions
+#     protocol_test_functions = {
+#         'tcp': test_tcp_connection,
+#         'udp': test_udp_connection,
+#         'tls': test_tls_connection,
+#         'http': test_http_connection,
+#         'https': test_https_connection,
+#     }
+#     output = config.get('output')
+#     output_type = output.get('type', '').lower()
+#     connection_config = {}
+#     connection_config['compatibility'] = output.get('compatibility_mode', None)
+#
+#     if output_type in ['http', 'https']:
+#         protocol = config.get(output_type, {})
+#         auth_config = protocol.get('authentication', {})
+#         auth_type = auth_config.get('auth_type', '').lower()
+#
+#         # Basic or Bearer Authentication
+#         if auth_type == 'basic':
+#             auth = (auth_config.get('username', ''), auth_config.get('password', ''))
+#         elif auth_type == 'bearer':
+#             token = auth_config.get('token', '')
+#             headers = {'Authorization': f'Bearer {token}'}
+#         else:
+#             auth = None
+#
+#         # Custom Headers
+#         headers = protocol.get('custom_headers', {})
+#
+#         # Construct full destination URL
+#         compatibility = connection_config['compatibility']
+#         destination = output.get('destination')
+#         port = output.get('port')
+#         uri = output.get('uri', '')
+#         protocol_prefix = 'https' if output_type == 'https' else 'http'
+#         full_dest = f"{protocol_prefix}://{destination}:{port}/{uri}"
+#
+#         # SSL/TLS specific settings for HTTPS
+#         if output_type == 'https':
+#             verify = protocol.get('verify', True)
+#             ca_cert = protocol.get('ca_cert', None)
+#             client_cert = protocol.get('client_cert', None)
+#             client_key = protocol.get('client_key', None)
+#             cert = (client_cert, client_key) if client_cert and client_key else None
+#             # Call the HTTPS test function with the assembled parameters
+#             return protocol_test_functions[output_type](full_dest, headers=headers, auth=auth,
+#                                                         verify=verify, cert=cert, compatibility=compatibility)
+#         else:
+#             # Call the HTTP test function without SSL/TLS parameters
+#             return protocol_test_functions[output_type](full_dest, headers=headers, auth=auth,
+#                                                         compatibility=compatibility)
+#
+#
+#     elif output_type == "tls":
+#         protocol = config.get(output_type)
+#         if protocol:
+#             verify = protocol.get('verify', False)
+#             if verify:
+#                 connection_config['ca_cert'] = protocol.get('ca_cert', '')  # path to ca cert
+#                 connection_config['client_cert'] = protocol.get('client_cert', '')  # path to client_cert
+#                 connection_config['client_key'] = protocol.get('client_key', '')  # path to client_key
+#         connection_config['destination'] = output['destination']
+#         connection_config['port'] = output['port']
+#         connection_config['full_dest'] = f"{connection_config['destination']}:{connection_config['port']}"
+#     else:
+#         connection_config['destination'] = output['destination']
+#         connection_config['port'] = output['port']
+#         connection_config['full_dest'] = f"{connection_config['destination']}:{connection_config['port']}"
+#
+#     test_function = protocol_test_functions.get(output_type)
+#
+#     if not test_function:
+#         logger.error(f"Unsupported output type: {output_type}")
+#         return False
+#
+#     # Customize the connectivity test call based on the output type
+#     try:
+#         if output_type in ['http', 'https']:
+#             # For HTTP and HTTPS, the test function might require URL, headers, and possibly auth
+#             return test_function(connection_config['full_dest'], headers=connection_config.get('headers'))
+#
+#         elif output_type == 'tls':
+#             # For TLS, the test function requires destination, port, and possibly SSL context details
+#             return test_function(connection_config['destination'], connection_config['port'],
+#                                  ca_cert=connection_config.get('ca_cert'),
+#                                  client_cert=connection_config.get('client_cert'),
+#                                  client_key=connection_config.get('client_key'))
+#
+#         elif output_type in ['tcp', 'udp']:
+#             # For TCP and UDP, only destination and port are needed
+#             return test_function(connection_config['destination'], connection_config['port'])
+#
+#     except Exception as e:
+#         logger.error(f"Error testing connectivity for {output_type}: {e}")
+#         return False
+#
+#     return True
+def verify_output_connectivity(config):
+    """
+    Verifies the connectivity based on the output configuration.
+
+    Args:
+        config (dict): Configuration from the user, including output and protocol details.
+
+    Returns:
+        bool: True if the connectivity test is successful, False otherwise.
+    """
+    # Mapping output types to their respective test functions
+    protocol_test_functions = {
+        'tcp': test_tcp_connection,
+        'udp': test_udp_connection,
+        'tls': test_tls_connection,
+        'http': test_http_connection,
+        'https': test_https_connection,
+    }
+
+    output = config.get('output')
+    output_type = output.get('type', '').lower()
+    protocol_config = config.get(output_type, {})
+    compatibility = output.get('compatibility_mode', None)
+
+    # Authentication and Headers Setup
+    auth_config = protocol_config.get('authentication', {})
+    auth = None
+    if auth_config.get('auth_type', '').lower() == 'basic':
+        auth = (auth_config.get('username', ''), auth_config.get('password', ''))
+    elif auth_config.get('auth_type', '').lower() == 'bearer':
+        token = auth_config.get('token', '')
+        protocol_config['custom_headers'] = {'Authorization': f'Bearer {token}'}
+    headers = protocol_config.get('custom_headers', {})
+
+    # SSL/TLS Verification and Client Certificates
+    verify = protocol_config.get('verify', True)
+    ca_cert = protocol_config.get('ca_cert', None)
+    client_cert = protocol_config.get('client_cert', None)
+    client_key = protocol_config.get('client_key', None)
+    cert = (client_cert, client_key) if client_cert and client_key else None
+
+    # Full Destination URL or Address
+    destination = output.get('destination')
+    port = output.get('port')
+    uri = output.get('uri', '')
+    full_dest = None
+    if output_type in ['http', 'https']:
+        protocol_prefix = 'https' if output_type == 'https' else 'http'
+        full_dest = f"{protocol_prefix}://{destination}:{port}{uri}"
+
+    test_function = protocol_test_functions.get(output_type)
+    if not test_function:
+        logger.error(f"Unsupported output type: {output_type}")
+        return False
+
+    # Execute the test function based on output type
+    try:
+        if output_type == 'http':
+            # HTTPS and HTTP with potential SSL/TLS verification and client certificates
+            return test_function(full_dest, headers=headers, auth=auth, compatibility=compatibility)
+        elif output_type == 'https':
+            return test_function(full_dest, headers=headers, auth=auth,
+                                 verify=verify, cert=cert, compatibility=compatibility)
+        elif output_type == 'tls':
+            # TLS with SSL/TLS verification and client certificates
+            return test_function(destination, port, verify=verify, ca_cert=ca_cert, client_cert=client_cert, client_key=client_key, compatibility=compatibility)
+        elif output_type in ['tcp', 'udp']:
+            # TCP and UDP might simply require destination and port
+            return test_function(destination, port, compatibility=compatibility)
+    except Exception as e:
+        logger.error(f"Error testing connectivity for {output_type}: {e}")
+        return False
+
+    return True
 def verify_aws_credentials(config, agents_config):
-    # Check if any agent is using SQS, if not, skip AWS credentials verification
-    require_verification= False
-    if agents_config:
-        for agent in agents_config:
-            if agent.get('type', '').lower() == 'sqs':
-                require_verification = True
+    """
+    Verifies AWS credentials by checking if specified SQS queues exist and are accessible.
+
+    Args:
+        config (dict): Global configuration that includes AWS credentials.
+        agents_config (list): List of agent configurations.
+
+    Returns:
+        bool: True if AWS credentials are verified successfully, or if no SQS agents require verification. False otherwise.
+    """
+    require_verification = False
+    sqs_names = []
+
+    # Collect SQS queue names from the agents_config
+    for agent in agents_config:
+        if agent.get('type', '').lower() == 'sqs':
+            require_verification = True
+            if 'sqs_settings' in agent and 'queue_name' in agent['sqs_settings']:
+                sqs_names.append(agent['sqs_settings']['queue_name'])
+
     if require_verification:
         try:
+            # Initialize SQS client with provided AWS credentials
             sqs = boto3.client('sqs', region_name=config['aws_credentials']['region'],
                                aws_access_key_id=config['aws_credentials']['access_key_id'],
                                aws_secret_access_key=config['aws_credentials']['secret_access_key'])
-            sqs.list_queues()
-            logger.info("AWS credentials verified successfully.")
+
+            # Fetch list of queues and extract queue names from the URLs
+            response = sqs.list_queues()
+            existing_queues_urls = response.get('QueueUrls', [])
+            existing_queue_names = [url.split('/')[-1] for url in existing_queues_urls]
+
+            # Check if each required queue name exists in the list of existing queues
+            for queue_name in sqs_names:
+                if queue_name not in existing_queue_names:
+                    logger.error(f"SQS queue '{queue_name}' does not exist or is not accessible.")
+                    return False
+
+            logger.info("AWS credentials verified successfully. All specified SQS queues exist and are accessible.")
             return True
         except Exception as e:
             logger.error(f"AWS credentials verification failed: {e}")
@@ -51,7 +434,7 @@ def verify_agent_config(agent_config):
     compatibility_mode = agent_config.get('output', {}).get('compatibility_mode')
     if compatibility_mode is not None:
         # Check if the compatibility mode is supported for the product
-        if compatibility_mode not in supported_features[product].get('compatibility_mode', []):
+        if compatibility_mode.lower() not in supported_features[product].get('compatibility_mode', []):
             logger.error(
                 f"The product '{product}' in agent {agent_config['name']} does not support {compatibility_mode} compatibility mode.")
             return False
@@ -148,6 +531,8 @@ def verify_selected_output_config(output_config, formats_config):
     return True
 
 
+
+
 def verify_configuration(config, agents_config):
     logger.info("Starting configuration verification...")
     # Verify general configuration
@@ -175,6 +560,13 @@ def verify_configuration(config, agents_config):
 
     if not verify_selected_output_config(config['output'], config['formats']):
         return False
+
+    verify_mode = config['debug'].get('verify_destination_connectivity', True)
+    # Verify connectivity based on the output configuration
+    if verify_mode:
+        if not verify_output_connectivity(config):
+            logger.error("Output connectivity test failed.")
+            return False
 
     logger.info("Configuration verification completed successfully.")
     return True

@@ -234,7 +234,7 @@ class CloudWAAPProcessor:
             headers_dict.pop('Cookie', None)
 
             # Compile all headers except cookies into a single string
-            headers_str = "; ".join([f"{key}: {value}" for key, value in headers_dict.items()])
+            headers_str = "\r\n".join([f"{key}: {value}" for key, value in headers_dict.items()])
 
             return method, full_url, http_version, cookie, user_agent, referrer, headers_str
         except Exception as e:
@@ -507,7 +507,7 @@ class CloudWAAPProcessor:
         """
         # Define the mapping of old field names to new field names
         field_map = {
-            "detection.ApplicationBehavior.attackThreshold": "detection_attack_threshold",
+            "detection.applicationBehavior.attackThreshold": "detection_attack_threshold",
             "mitigation.totalRequests.received": "total_requests_received",
             "mitigation.totalRequests.dropped": "total_requests_dropped",
             "mitigation.averageValues": "average_values",
