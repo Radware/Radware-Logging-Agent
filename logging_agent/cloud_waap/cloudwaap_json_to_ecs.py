@@ -244,24 +244,34 @@ def transform_latest_real_time_signature(pattern_dict):
     Transforms a dictionary containing a 'Pattern' key with an array of patterns into a more structured format.
     Each pattern's 'Name' is converted into a key in the resulting dictionary, and its 'Values' are assigned as the value.
     If 'Values' contains more than one item, it is kept as a list; otherwise, it is a single value.
-    In case of any exception during transformation, the original value is returned unchanged.
+    Additionally, creates a 'fullSignature' subfield containing a text representation of all name-value pairs.
 
     :param pattern_dict: A dictionary with a 'Pattern' key containing an array of pattern objects.
-    :return: A transformed dictionary with structured key-value pairs or the original dictionary if an error occurs.
+    :return: A transformed dictionary with structured key-value pairs and a 'fullSignature' subfield.
     """
     try:
         transformed = {}
+        full_signature_text = ""
 
         for pattern in pattern_dict["Pattern"]:
             name = pattern["Name"]
-
             # Convert name to lowercase, remove "header " prefix, '*' characters, and trailing '-'
             formatted_name = name.replace('header ', '').lower().replace(' ', '_').replace('*', '').rstrip('-')
 
             # Use list if multiple values, otherwise just the single value
             transformed_value = pattern["Values"] if len(pattern["Values"]) > 1 else pattern["Values"][0]
 
+            # Append to the full_signature_text
+            if isinstance(transformed_value, list):
+                values_text = ", ".join(transformed_value)  # Join multiple values with a comma
+            else:
+                values_text = transformed_value
+            full_signature_text += f"{formatted_name}: {values_text}\n"
+
             transformed[formatted_name] = transformed_value
+
+        # Add the fullSignature text representation to the transformed dictionary
+        transformed["fullSignature"] = full_signature_text.rstrip("\n")  # Remove the last newline
 
         return transformed
     except Exception:

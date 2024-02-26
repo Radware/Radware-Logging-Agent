@@ -1,0 +1,497 @@
+{
+    "name": "cloud-waap-radware-map",
+    "component_template": {
+        "template": {
+            "mappings": {
+                "properties": {
+                    "radware": {
+                        "type": "object",
+                        "properties": {
+                            "cloud_waap": {
+                                "type": "object",
+                                "properties": {
+                                    "totalVolume": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "reason": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "sourcePort": {
+                                        "coerce": true,
+                                        "index": true,
+                                        "ignore_malformed": false,
+                                        "store": false,
+                                        "type": "long",
+                                        "doc_values": true
+                                    },
+                                    "transId": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "responseCode": {
+                                        "coerce": true,
+                                        "index": true,
+                                        "ignore_malformed": false,
+                                        "store": false,
+                                        "type": "short",
+                                        "doc_values": true
+                                    },
+                                    "destinationIp": {
+                                        "index": true,
+                                        "store": false,
+                                        "type": "ip",
+                                        "doc_values": true
+                                    },
+                                    "paramType": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "httpBytesOut": {
+                                        "coerce": true,
+                                        "index": true,
+                                        "ignore_malformed": false,
+                                        "store": false,
+                                        "type": "long",
+                                        "doc_values": true
+                                    },
+                                    "protocol": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "violationType": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "latestRealTimeSignature": {
+                                        "type": "object",
+                                        "properties": {
+                                            "cache": {
+                                                "index": true,
+                                                "store": false,
+                                                "type": "boolean",
+                                                "doc_values": true
+                                            },
+                                            "method": {
+                                                "eager_global_ordinals": false,
+                                                "norms": false,
+                                                "index": true,
+                                                "store": false,
+                                                "type": "keyword",
+                                                "index_options": "docs",
+                                                "split_queries_on_whitespace": false,
+                                                "doc_values": true
+                                            },
+                                            "fullSignature": {
+                                                "type": "text"
+                                            },
+                                            "query": {
+                                                "coerce": true,
+                                                "index": true,
+                                                "ignore_malformed": false,
+                                                "store": false,
+                                                "type": "integer",
+                                                "doc_values": true
+                                            },
+                                            "content": {
+                                                "index": true,
+                                                "store": false,
+                                                "type": "boolean",
+                                                "doc_values": true
+                                            },
+                                            "cookies": {
+                                                "type": "integer"
+                                            },
+                                            "pragma": {
+                                                "index": true,
+                                                "store": false,
+                                                "type": "boolean",
+                                                "doc_values": true
+                                            },
+                                            "unknown": {
+                                                "coerce": true,
+                                                "index": true,
+                                                "ignore_malformed": false,
+                                                "store": false,
+                                                "type": "integer",
+                                                "doc_values": true
+                                            },
+                                            "via": {
+                                                "index": true,
+                                                "store": false,
+                                                "type": "boolean",
+                                                "doc_values": true
+                                            },
+                                            "sec": {
+                                                "index": true,
+                                                "store": false,
+                                                "type": "boolean",
+                                                "doc_values": true
+                                            },
+                                            "path": {
+                                                "coerce": true,
+                                                "index": true,
+                                                "ignore_malformed": false,
+                                                "store": false,
+                                                "type": "integer",
+                                                "doc_values": true
+                                            },
+                                            "known": {
+                                                "coerce": true,
+                                                "index": true,
+                                                "ignore_malformed": false,
+                                                "store": false,
+                                                "type": "integer",
+                                                "doc_values": true
+                                            },
+                                            "upgrade-insecure-requests": {
+                                                "index": true,
+                                                "store": false,
+                                                "type": "boolean",
+                                                "doc_values": true
+                                            },
+                                            "connection": {
+                                                "index": true,
+                                                "store": false,
+                                                "type": "boolean",
+                                                "doc_values": true
+                                            }
+                                        }
+                                    },
+                                    "host": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "action": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "ruleId": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "paramValue": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "mitigation": {
+                                        "type": "object",
+                                        "properties": {
+                                            "averageValues": {
+                                                "coerce": true,
+                                                "index": true,
+                                                "ignore_malformed": false,
+                                                "store": false,
+                                                "type": "float",
+                                                "doc_values": true
+                                            },
+                                            "maximumValues": {
+                                                "coerce": true,
+                                                "index": true,
+                                                "ignore_malformed": false,
+                                                "store": false,
+                                                "type": "float",
+                                                "doc_values": true
+                                            },
+                                            "totalRequests": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "dropped": {
+                                                        "coerce": true,
+                                                        "index": true,
+                                                        "ignore_malformed": false,
+                                                        "store": false,
+                                                        "type": "float",
+                                                        "doc_values": true
+                                                    },
+                                                    "received": {
+                                                        "coerce": true,
+                                                        "index": true,
+                                                        "ignore_malformed": false,
+                                                        "store": false,
+                                                        "type": "float",
+                                                        "doc_values": true
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "cookie": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "vhost": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "sourceIp": {
+                                        "index": true,
+                                        "store": false,
+                                        "type": "ip",
+                                        "doc_values": true
+                                    },
+                                    "name": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "applicationId": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "status": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "destinationPort": {
+                                        "coerce": true,
+                                        "index": true,
+                                        "ignore_malformed": false,
+                                        "store": false,
+                                        "type": "long",
+                                        "doc_values": true
+                                    },
+                                    "logType": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "request": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "role": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "signaturePattern": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "paramName": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "httpMethod": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "appPath": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "directory": {
+                                        "eager_global_ordinals": false,
+                                        "index_phrases": false,
+                                        "fielddata": false,
+                                        "norms": true,
+                                        "index": true,
+                                        "store": false,
+                                        "type": "text",
+                                        "index_options": "positions"
+                                    },
+                                    "duration": {
+                                        "coerce": true,
+                                        "index": true,
+                                        "ignore_malformed": false,
+                                        "store": false,
+                                        "type": "long",
+                                        "doc_values": true
+                                    },
+                                    "security": {
+                                        "type": "boolean"
+                                    },
+                                    "httpVersion": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "tenantName": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "httpBytesIn": {
+                                        "coerce": true,
+                                        "index": true,
+                                        "ignore_malformed": false,
+                                        "store": false,
+                                        "type": "long",
+                                        "doc_values": true
+                                    },
+                                    "countryCode": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "startTime": {
+                                        "type": "date"
+                                    },
+                                    "applicationName": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "severity": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "targetModule": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "webApp": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "headers": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "detection": {
+                                        "dynamic": true,
+                                        "type": "object",
+                                        "enabled": true,
+                                        "properties": {
+                                            "applicationBehavior": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "attackThreshold": {
+                                                        "type": "float"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "owaspCategory": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "product": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "sessionCookie": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "invalidData": {
+                                        "type": "object",
+                                        "properties": {
+                                            "sourceIp": {
+                                                "type": "text"
+                                            },
+                                            "xForwardedFor": {
+                                                "type": "text"
+                                            },
+                                            "destionationIp": {
+                                                "type": "text"
+                                            }
+                                        }
+                                    },
+                                    "userAgent": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "passive": {
+                                        "type": "boolean"
+                                    },
+                                    "uri": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "requestTime": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "referrer": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "acceptLanguage": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "policyId": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "rps": {
+                                        "type": "object",
+                                        "properties": {
+                                            "blocked": {
+                                                "coerce": true,
+                                                "index": true,
+                                                "ignore_malformed": false,
+                                                "store": false,
+                                                "type": "float",
+                                                "doc_values": true
+                                            },
+                                            "inbound": {
+                                                "coerce": true,
+                                                "index": true,
+                                                "ignore_malformed": false,
+                                                "store": false,
+                                                "type": "float",
+                                                "doc_values": true
+                                            },
+                                            "attackThreshold": {
+                                                "coerce": true,
+                                                "index": true,
+                                                "ignore_malformed": false,
+                                                "store": false,
+                                                "type": "float",
+                                                "doc_values": true
+                                            },
+                                            "clean": {
+                                                "coerce": true,
+                                                "index": true,
+                                                "ignore_malformed": false,
+                                                "store": false,
+                                                "type": "float",
+                                                "doc_values": true
+                                            }
+                                        }
+                                    },
+                                    "contractId": {
+                                        "eager_global_ordinals": false,
+                                        "index_phrases": false,
+                                        "fielddata": false,
+                                        "norms": true,
+                                        "index": true,
+                                        "store": false,
+                                        "type": "text",
+                                        "index_options": "positions"
+                                    },
+                                    "tenantId": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "endTime": {
+                                        "type": "date"
+                                    },
+                                    "time": {
+                                        "type": "date"
+                                    },
+                                    "xForwardedFor": {
+                                        "index": true,
+                                        "store": false,
+                                        "type": "ip",
+                                        "doc_values": true
+                                    },
+                                    "category": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "totalPackets": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "user": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,48 @@
+{
+    "name": "cloud-waap-http-map",
+    "component_template": {
+        "template": {
+            "mappings": {
+                "dynamic_templates": [],
+                "properties": {
+                    "http": {
+                        "type": "object",
+                        "properties": {
+                            "request": {
+                                "type": "object",
+                                "properties": {
+                                    "referrer": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "method": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    },
+                                    "bytes": {
+                                        "type": "long"
+                                    }
+                                }
+                            },
+                            "response": {
+                                "type": "object",
+                                "properties": {
+                                    "status_code": {
+                                        "type": "long"
+                                    },
+                                    "bytes": {
+                                        "type": "long"
+                                    }
+                                }
+                            },
+                            "version": {
+                                "ignore_above": 1024,
+                                "type": "keyword"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

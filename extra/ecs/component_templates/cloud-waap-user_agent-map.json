@@ -1,0 +1,42 @@
+{
+    "name": "cloud-waap-user_agent-map",
+    "component_template": {
+        "template": {
+            "mappings": {
+                "properties": {
+                    "user_agent": {
+                        "type": "object",
+                        "properties": {
+                            "original": {
+                                "ignore_above": 1024,
+                                "type": "keyword",
+                                "fields": {
+                                    "text": {
+                                        "type": "match_only_text"
+                                    }
+                                }
+                            },
+                            "name": {
+                                "ignore_above": 1024,
+                                "type": "keyword"
+                            },
+                            "device": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "ignore_above": 1024,
+                                        "type": "keyword"
+                                    }
+                                }
+                            },
+                            "version": {
+                                "ignore_above": 1024,
+                                "type": "keyword"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
