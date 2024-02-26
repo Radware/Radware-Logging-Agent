@@ -66,6 +66,7 @@ class Transformer:
                 self.logger.error(f"Unsupported output format: {self.output_format} for product {self.product}")
                 return None
 
+
         return delimiter.join(transformed_logs) if batch_mode else transformed_logs
 
     def enrich_event(self, event, log_type, format_options, metadata):
@@ -108,9 +109,9 @@ class Transformer:
                 from logging_agent.cloud_waap.cloudwaap_json_to_cef import json_to_cef as conversion_func
             elif self.output_format == "leef":
                 from logging_agent.cloud_waap.cloudwaap_json_to_leef import json_to_leef as conversion_func
-            elif self.output_format == "json" and self.compatibility_mode == "ecs":
+            elif self.output_format == "json" and self.compatibility_mode.lower() in ['ecs', 'ecs custom http endpoint']:
                 from logging_agent.cloud_waap.cloudwaap_json_to_ecs import json_to_ecs as conversion_func
-            elif self.output_format == "json" and self.compatibility_mode == "Splunk HEC":
+            elif self.output_format == "json" and self.compatibility_mode.lower() == "splunk hec":
                 from logging_agent.cloud_waap.cloudwaap_json_to_splunk_hec import json_to_splunk_hec as conversion_func
             else:
                 conversion_func = None

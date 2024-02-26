@@ -9,6 +9,30 @@ fi
 # Define application directory and service name
 APP_DIR="/etc/rla"
 SERVICE_NAME="rla.service"
+CONFIG_FILE="$APP_DIR/rla.yaml"
+
+# Check if the RLA installation already exists
+if [ -d "$APP_DIR" ]; then
+    echo "An existing RLA installation was detected in $APP_DIR."
+    echo "Proceeding will overwrite the current installation."
+
+    # Check if the rla.yaml configuration file exists
+    if [ -f "$CONFIG_FILE" ]; then
+        read -p "Do you want to overwrite the rla.yaml configuration file? [y/N]: " overwrite_conf
+        case $overwrite_conf in
+            [Yy]* )
+                echo "rla.yaml will be overwritten."
+                overwrite_config=true
+                ;;
+            * )
+                echo "rla.yaml will NOT be overwritten. Please review the readme.md to ensure compatibility."
+                overwrite_config=false
+                ;;
+        esac
+    fi
+else
+    echo "Installing RLA."
+fi
 
 # Attempt to identify the distribution
 distro=$(grep '^ID=' /etc/os-release | cut -d= -f2 | tr -d '"')
@@ -73,15 +97,20 @@ fi
 
 # Set up necessary directories
 echo "Creating necessary directories..."
-mkdir -p $APP_DIR
 mkdir -p /var/log/rla
-chown -R rla:rla $APP_DIR
 chown -R rla:rla /var/log/rla
 
-# Copy application files to /etc/rla/ and set correct permissions
-echo "Copying application files to $APP_DIR"
-cp -r ./* $APP_DIR
+# Copy application files to /etc/rla/ and set correct permissions, excluding rla.yaml if necessary
+echo "Copying application files to $APP_DIR..."
+for file in ./*; do
+    if [ "$overwrite_config" = false ] && [[ "$(basename "$file")" == "rla.yaml" ]]; then
+        echo "Skipping rla.yaml as per user choice."
+    else
+        cp -r "$file" "$APP_DIR"
+    fi
+done
 chown -R rla:rla $APP_DIR
+
 
 # Set up Python virtual environment and install dependencies as rla user
 echo "Setting up Python virtual environment and installing dependencies in $APP_DIR"

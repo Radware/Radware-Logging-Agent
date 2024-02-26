@@ -1,0 +1,30 @@
+{
+    "name": "cloud-waap-url-map",
+    "component_template": {
+        "template": {
+            "mappings": {
+                "properties": {
+                    "url": {
+                        "type": "object",
+                        "properties": {
+                            "path": {
+                                "type": "wildcard"
+                            },
+                            "original": {
+                                "type": "wildcard"
+                            },
+                            "domain": {
+                                "ignore_above": 1024,
+                                "type": "keyword"
+                            },
+                            "query": {
+                                "ignore_above": 1024,
+                                "type": "keyword"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

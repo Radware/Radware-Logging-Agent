@@ -56,9 +56,10 @@ output:
   destination: ''  # Destination where logs are sent. Format varies based on 'type'.
   batch: true  # Determines whether to batch send logs. Note: not compatible with UDP.
   compatibility_mode: "none"  # Sets the log forwarding compatibility mode.
-                              # Options: "Splunk HEC", "none".
+                              # Options: "Splunk HEC", "ECS", "none".
                               # Requirements for compatibility modes:
                               # - Splunk HEC: Must configure 'type' as either 'http' or 'https' and 'output_format' as 'json'.
+                              # - ECS: Must be configured with 'type' as either 'http', 'https', 'tls', and 'tcp' and 'output_format' as 'json'.
 
 # TLS Configuration
 # -----------------
@@ -155,3 +156,14 @@ formats:
 #      host: "product"  # Source of the host field in syslog header
 
 
+# Debug Configuration
+# -------------------
+# Optional debug settings improve troubleshooting. By default, both are set to true to ensure
+# optimal connectivity and configuration verification. If specific debugging needs arise,
+# such as bypassing initial checks or when not receiving a 200 OK from the destination,
+# you may explicitly set these to false.
+
+# Uncomment and set to false as needed:
+# debug:
+#   verify_destination_connectivity: false  # Disable to skip connectivity checks to the destination.
+#   config_verification: false              # Disable to skip initial configuration and connectivity verifications.

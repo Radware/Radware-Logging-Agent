@@ -1,0 +1,24 @@
+{
+    "name": "cloud-waap-base-map",
+    "component_template": {
+        "template": {
+            "mappings": {
+                "properties": {
+                    "@timestamp": {
+                        "type": "date"
+                    },
+                    "message": {
+                        "type": "match_only_text"
+                    },
+                    "labels": {
+                        "type": "object"
+                    },
+                    "tags": {
+                        "ignore_above": 1024,
+                        "type": "keyword"
+                    }
+                }
+            }
+        }
+    }
+}

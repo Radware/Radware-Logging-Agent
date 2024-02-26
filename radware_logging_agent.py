@@ -32,13 +32,25 @@ def main():
         os.environ['RLA_VERIFY_MODE'] = '0'
         # Initialize logger for use in the else branch
         logger = get_logger('radware_logging_agent')
+
+        # Determine if configuration verification is enabled
+        verify_mode = config['debug'].get('config_verification', True)
+
+        # Check if configuration verification should be skipped
+        if not verify_mode:
+            logger.info("Configuration verification is disabled. Skipping...")
+            start_local_agent()
+            return
+
         # Perform configuration verification using standard logging
         if verify_configuration(config, agents_config):
             # Only start the local agent if the configuration verification is successful
             start_local_agent()
         else:
             # Since we're not in verification mode, use the logger for error messaging
-            logger.error("Configuration verification failed. Please check the logs for more details. The agent will not start.")
+            logger.error(
+                "Configuration verification failed. Please check the logs for more details. The agent will not start.")
+
 
 if __name__ == "__main__":
     main()

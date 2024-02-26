@@ -81,6 +81,19 @@ class Config:
                 # If 'compatibility_mode' does not exist, set it to None
                 self.config['output']['compatibility_mode'] = None
 
+            if 'compatibility_mode' in self.config['output'] and self.config['output']['compatibility_mode'] != None:
+                self.config['output']['compatibility_mode'] = self.config['output']['compatibility_mode'].lower()
+
+            # set debug field default values or override values
+            debug = self.config.get('debug', None)
+            if not debug:
+                self.config['debug'] = {}
+                self.config['debug']['verify_destination_connectivity'] = True
+                self.config['debug']['config_verification'] = True
+            else:
+                self.config['debug']['verify_destination_connectivity'] = self.config['debug'].get('verify_destination_connectivity', True)
+                self.config['debug']['config_verification'] = self.config['debug'].get('config_verification', True)
+
             # Set output type defaults
             type_config = self.config.get(output_type, None)
             if type_config == None:
@@ -138,6 +151,9 @@ class Config:
             # Setting default log file name if it does not exist or is empty
             if 'log_file' not in self.config['general'] or not self.config['general']['log_file']:
                 self.config['general']['log_file'] = default_log_file
+
+            if self.config['output']['type'] == "udp":
+                self.config['output']['batch'] = False
 
             # Process agents
             self.config['agents'] = {agent['name']: agent for agent in self.config.get('agents', [])}
@@ -287,7 +303,7 @@ class Config:
         # Update configuration with parsed values
         self.config['output']['destination'] = url_parse.hostname
         self.config['output']['port'] = url_parse.port if url_parse.port else default_ports.get(output_type, 514)
-        self.config['output']['uri'] = url_parse.path if url_parse.path else None
+        self.config['output']['uri'] = url_parse.path if url_parse.path else ""
 
         if not (0 < self.config['output']['port'] < 65536):
             raise ValueError(f"Invalid port: {self.config['output']['port']}. Must be an integer between 1 and 65535.")

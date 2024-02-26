@@ -21,8 +21,8 @@ def enrich_access_log(event, format_options, output_format, metadata, log_type):
     """
     try:
         format_option = format_options.get('unify_fields', True)
-        if output_format == ['json']:
-            event['logType'] = log_type
+        if output_format == 'json':
+            event['logType'] = "Access"
             event['product'] = "Cloud WAAP"
 
         if format_option or output_format in ['cef', 'leef']:
@@ -152,6 +152,9 @@ def enrich_waf_log(event, format_options, output_format, metadata, log_type):
 
             if 'http_method' in event:
                 event['httpMethod'] = event.pop('http_method')
+
+            if 'method' in event and 'httpMethod' not in event:
+                event['httpMethod'] = event.pop('method')
 
             if 'http_version' in event:
                 event['httpVersion'] = event.pop('http_version')
@@ -369,7 +372,8 @@ def enrich_webddos_log(event, format_options, output_format, metadata, log_type)
             # Process 'enrichmentContainer' if present
             if 'enrichmentContainer' in event:
                 event = CloudWAAPProcessor.process_enrichment_container(event)
-
+            if 'detection' in event and 'ApplicationBehavior' in event['detection']:
+                event['detection']['applicationBehavior'] = event['detection'].pop('ApplicationBehavior')
             if output_format in ['cef', 'leef']:
                 # Flatten latest real time signature if it exists
                 if 'latestRealTimeSignature' in event:
