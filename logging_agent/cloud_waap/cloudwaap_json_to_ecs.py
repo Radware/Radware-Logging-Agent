@@ -286,15 +286,6 @@ def json_to_ecs(log, log_type, product, field_mappings, format_options):
     """
     try:
         ecs_fields = field_mappings.get(product, {}).get(log_type, {}).get("ecs", {})
-
-        # if 'detection' in log:
-        #     del log['detection']
-        # if 'mitigation' in log:
-        #     if 'rps' not in log:
-        #         log['rps'] = {}
-        #     log['rps']['averageValue'] = log['mitigation']['averageValue']
-        #     log['rps']['maximumValues'] = log['mitigation']['maximumValues']
-        #     del log['mitigation']
         if log['logType'] == "WebDDoS":
             if 'duration' in log:
                 log['duration'] = hhmmss_to_nanoseconds(log['duration'])

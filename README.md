@@ -4,16 +4,22 @@ RLA is a log processing tool designed to streamline the integration of Radware p
 
 ## Current Version
 
-**Version 1.1.1** - Released on 18th February 2024
+**Version 1.2.0** - Released on 26th February 2024
 
 ## Release Notes
 
+### Version 1.2.0 26/02/2024
+- Added **ECS Compatibility Mode** for enhanced log structure compatibility with both Elastic Common Schema and Radware custom schema.
+- Improved **Configuration Validation** on startup, including checks for SQS queue and destination connectivity, for increased application reliability.
+- Introduced **Debug Options** to selectively disable configuration validation, enhancing flexibility during troubleshooting.
+- Improved **Installer**: Now offers an option to retain the existing `rla.yaml` during upgrades, ensuring seamless update experiences.
+
 ### Version 1.1.1 - 18/02/2024
-- Homogenized fields are now all styled uniformly using camel casing.
+- Changed **Homogenized fields** are now all styled uniformly using camel casing.
 
 ### Version 1.1.0 - 14/02/2024
-- Added Batch configuration for TCP, TLS, HTTP, and HTTPS.
-- Added Compatibility mode with Splunk HEC Support.
+- Added **Batch configuration** for TCP, TLS, HTTP, and HTTPS.
+- Added **Compatibility mode** with Splunk HEC Support.
 
 ### Version 1.0.0 - 10/02/2024
 - Initial Release.
@@ -75,11 +81,16 @@ Customize how logs are formatted and where they are sent after processing.
 - **type**: Select the transport protocol for sending logs. Options: `http`, `https`, `tcp`, `udp`, `tls`. This choice affects the delivery method of the log data.
 - **destination**: Define the endpoint for log delivery, format dependent on the chosen `type`. This is where the logs will be sent after processing.
 - **batch**: Enable or disable batch processing of logs. When enabled, logs are grouped into batches before being sent, which can increase efficiency for certain output types. Note: This setting is particularly relevant for `http` and `https` types where batching can reduce the number of outbound requests.
-- **compatibility_mode**: Set the log forwarding format compatibility mode. 
-  - Options include "Splunk HEC" and "none". This setting adjusts the log formatting and transmission to be compatible with specific external systems.
-  - Requirements for compatibility modes: 
-    - "Splunk HEC" `type` must be configured as either `http` or `https` and `output_format` as `json`. This mode optimizes the log data for ingestion by Splunk's HTTP Event Collector, adhering to its specific requirements for data format and transmission protocol.
+- **compatibility_mode**: Configure the log forwarding format to ensure compatibility with various external systems. This setting adjusts how logs are formatted and sent.
 
+  - **"Splunk HEC" Option**: Optimizes log format for Splunk's HTTP Event Collector, facilitating smoother integration and data analysis.
+    - **Requirement**: `type` must be configured as either `http` or `https`, and `output_format` as `json`. This ensures logs meet the format expectations of Splunk HEC.
+
+  - **"ECS" Option**: Aligns log format with the Elastic Common Schema (ECS) for Elasticsearch, enhancing interoperability across different Elastic Stack applications.
+    - **Requirement**: Must be configured with `type` as either `http`, `https`, `tls`, or `tcp`, and `output_format` as `json`. Adheres logs to ECS specifications, streamlining their use within the Elastic ecosystem.
+
+  - **"none" Option**: Applies no special formatting, suitable when there's no requirement for logs to adhere to specific external system formats.
+  - 
 ## Format-Specific Configurations
 
 Customize output settings for each supported log format.
@@ -97,20 +108,36 @@ Customize output settings for each supported log format.
 
 ## TLS Configuration
 
-Settings for secure TCP communication using TLS.
+Settings for secure TCP communication using TLS. These settings are crucial for ensuring encrypted and secure data transmission over the network.
 
-- **verify**: Whether to verify the server's SSL certificate (true/false).
-- **ca_cert**: Path to the CA certificate file.
-- **client_cert**: Path to the client's SSL certificate.
-- **client_key**: Path to the client's SSL key.
+- **verify**: Whether to verify the server's SSL certificate. Options: `true` (verify the certificate) or `false` (do not verify).
+- **ca_cert**: Path to the CA (Certificate Authority) certificate file. This is used to authenticate the certificate of the server.
+- **client_cert**: Path to the client's SSL certificate file. This certificate is presented to the server during the TLS handshake.
+- **client_key**: Path to the client's SSL key file. This key is associated with the client's certificate.
 
 ## HTTP/HTTPS Configuration
 
-Customize settings for log transmission over HTTP or HTTPS, including batch processing, authentication, and custom headers.
+Customize settings for log transmission over HTTP or HTTPS. When using HTTPS, the options available in the TLS Configuration can also be applied to ensure secure communication. This includes specifying certificates for SSL verification and encryption.
 
-- **batch**: Enable or disable batch processing. When true, multiple log events are grouped into a single HTTP request.
-- **authentication**: Specify authentication details for secure endpoint access. Supported methods: `none`, `basic`, `bearer`.
-- **custom_headers**: Define additional headers to be included in the HTTP request.
+- **authentication**: Specify authentication method for secure endpoint access. Supported methods include `none` (no authentication), `basic` (username and password), and `bearer` (bearer token).
+- **custom_headers**: Define additional HTTP headers to be included in each request. Useful for specifying content types, API keys, or other custom header values required by the receiving server.
+
+### HTTPS Specific Options
+
+For HTTPS connections, the following TLS-related settings can be utilized to enhance security:
+
+- **verify**: Controls whether the server's SSL certificate should be verified. A critical setting for preventing man-in-the-middle attacks.
+- **ca_cert**: Specify the path to the trusted CA certificate file. This ensures the server's certificate is issued by a trusted authority.
+- **client_cert** and **client_key**: Provide paths to the client's SSL certificate and key files, respectively. These are used for client authentication by the server.
+
+
+## Debug Configuration
+
+Enhance troubleshooting with optional debug settings, ensuring connectivity and configuration are verified at startup.
+
+- **verify_destination_connectivity**: Checks connectivity to the specified destination. Default: `true`. Disable for debugging or if the destination does not return a 200 OK response.
+- **config_verification**: Performs initial checks to verify configuration and connectivity. Default: `true`. Disable to bypass these verifications.
+
 
 For detailed explanations and additional configuration options, refer to the official RLA documentation or support resources.
 

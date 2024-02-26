@@ -59,7 +59,7 @@ output:
                               # Options: "Splunk HEC", "ECS", "none".
                               # Requirements for compatibility modes:
                               # - Splunk HEC: Must configure 'type' as either 'http' or 'https' and 'output_format' as 'json'.
-                              # - ECS: Must be configured with type as either http, https, tls and tcp and output_format as json
+                              # - ECS: Must be configured with 'type' as either 'http', 'https', 'tls', and 'tcp' and 'output_format' as 'json'.
 
 # TLS Configuration
 # -----------------
@@ -156,7 +156,14 @@ formats:
 #      host: "product"  # Source of the host field in syslog header
 
 
-# debug configuration
-#debug:
-#  verify_destination_connectivity: true # optional field, is true by default, checks connectivity to destination (set to false to debug or when destination server does not give a 200 response to basic request)
-#  config_verification: true # Option field, is implictly set to true unless configured her as false, if set to false disables the initial config and connectivity verifications.
+# Debug Configuration
+# -------------------
+# Optional debug settings improve troubleshooting. By default, both are set to true to ensure
+# optimal connectivity and configuration verification. If specific debugging needs arise,
+# such as bypassing initial checks or when not receiving a 200 OK from the destination,
+# you may explicitly set these to false.
+
+# Uncomment and set to false as needed:
+# debug:
+#   verify_destination_connectivity: false  # Disable to skip connectivity checks to the destination.
+#   config_verification: false              # Disable to skip initial configuration and connectivity verifications.
