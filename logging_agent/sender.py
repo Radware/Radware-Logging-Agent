@@ -7,6 +7,8 @@ import socket
 import ssl
 from .logging_config import get_logger
 from requests.exceptions import SSLError
+import certifi
+
 
 
 # Create a logger for this module
@@ -56,16 +58,29 @@ class Sender:
         session = requests.Session()
         # Setup SSL/TLS for HTTPS if specified in destination_config
         if destination.startswith("https://"):
+            # Check if SSL verification is enabled
             if tls_config.get('verify', False):
-                session.verify = tls_config.get('ca_cert')  # Path to CA cert
-                logger.info("Verifying against CA Cert", session.verify)
+                # Check if a CA certificate is specified
+                if 'ca_cert' in tls_config and tls_config['ca_cert']:
+                    # Use the specified CA certificate for verification
+                    session.verify = tls_config['ca_cert']
+                    logger.info("Verifying against specified CA Cert: %s", session.verify)
+                else:
+                    # Verify using the Certifi CA bundle
+                    session.verify = certifi.where()
+                    logger.info("Verifying with Certifi CA bundle")
             else:
-                session.verify = False  # Disable SSL verification
+                # SSL verification is disabled
+                session.verify = False
+                logger.info("SSL verification is disabled")
 
             # Load client certificate and key if provided
-            if 'client_cert' in tls_config and 'client_key' in tls_config:
+            if 'client_cert' in tls_config and 'client_key' in tls_config and tls_config['client_cert'] and tls_config[
+                'client_key']:
                 session.cert = (tls_config['client_cert'], tls_config['client_key'])
-                logger.info("Client Cert and Key Loaded:", session.cert)
+                logger.info("Client Cert and Key Loaded: %s", session.cert)
+            else:
+                logger.info("No client certificates configured.")
 
         retries = Retry(total=3, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
         adapter = HTTPAdapter(max_retries=retries)

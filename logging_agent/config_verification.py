@@ -6,6 +6,7 @@ from .app_info import supported_features
 import socket
 import ssl
 import requests
+import certifi
 
 logger = get_logger('config_verification')
 
@@ -136,49 +137,54 @@ def test_http_connection(url, headers=None, auth=None, compatibility=None):
         return False
 
 
-def test_https_connection(url, headers=None, auth=None, verify=True, cert=None, compatibility=None):
+def test_https_connection(url, headers=None, auth=None, tls_config=None, cert=None, compatibility=None):
     """
-    Tests HTTPS connectivity with optional headers, authentication, SSL/TLS verification, and client certificates,
-    and special compatibility modes.
+    Tests HTTPS connectivity with optional headers, authentication, SSL/TLS verification based on tls_config,
+    client certificates, and special compatibility modes.
 
     Args:
         url (str): The full URL to test connectivity with.
         headers (dict, optional): Custom headers for the request.
         auth (tuple, optional): A tuple containing the username and password for Basic authentication.
-        verify (bool or str, optional): Either a boolean, in which case it controls whether to verify the server's TLS certificate,
-                                        or a string, in which case it must be a path to a CA bundle to use. Defaults to True.
-        cert (str or tuple, optional): If String, the path to an SSL client cert file (.pem).
+        tls_config (dict, optional): Configuration for TLS/SSL verification. It can control whether to verify
+                                     the server's TLS certificate and specify a path to a CA bundle.
+        cert (str or tuple, optional): If String, path to an SSL client cert file (.pem).
                                        If Tuple, ('cert', 'key') pair.
         compatibility (str, optional): Special compatibility mode for the connectivity test.
 
     Returns:
         bool: True if the connectivity test is successful, False otherwise.
     """
-    # Create a Session object to persist certain parameters across requests
     session = requests.Session()
 
-    # Apply the optional parameters to the session
     if headers:
         session.headers.update(headers)
     if auth:
         session.auth = auth
-    if verify:
-        session.verify = verify  # CA bundle for server verification
     if cert:
-        session.cert = cert  # Client certificate and optionally a key for client authentication
+        session.cert = cert
+
+    # Apply TLS/SSL verification settings from tls_config
+    if tls_config:
+        verify = tls_config.get('verify', True)  # Default to True if not specified
+        ca_cert = tls_config.get('ca_cert', None)
+
+        if verify:
+            session.verify = ca_cert if ca_cert else certifi.where()
+            verify_msg = f"Verifying against CA Cert: {session.verify}" if ca_cert else "Verifying with Certifi CA bundle"
+        else:
+            session.verify = False
+            verify_msg = "SSL verification is disabled"
+        logger.info(verify_msg)
 
     try:
         if compatibility == 'splunk hec':
-            # For Splunk HEC compatibility, perform a POST request with an empty body
             response = session.post(url, data='', timeout=5)
-            # Valid response is a 400 with a specific error message
             return response.status_code == 400 and "No data" in response.json().get("text", "")
         else:
-            # Default behavior with a GET request
             response = session.get(url, timeout=5)
             return response.status_code == 200
     except requests.RequestException as e:
-        # Log any exception that occurs during the request
         logger.error(f"HTTPS connectivity test failed: {e}")
         return False
 
