@@ -105,6 +105,8 @@ class SQSAgent:
             stop_agent (threading.Event): Event to signal when to stop polling.
         """
         while not stop_agent.is_set():
+            if stop_agent.is_set():  # Check right after entering the loop
+                break
             if processing_messages.qsize() < 10:  # Check if the queue isn't overloaded
                 response = self.fetch_messages()
                 if response and response.get('Messages'):

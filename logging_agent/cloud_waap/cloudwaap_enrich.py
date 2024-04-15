@@ -59,7 +59,8 @@ def enrich_access_log(event, format_options, output_format, metadata, log_type):
                                  "destination_ip": "destinationIp",
                                  "destination_port": "destinationPort",
                                  "host": "host",
-                                 "protocol": "uri",
+                                 "protocol": "protocol",
+                                 "uri": "uri",
                                  "referrer": "referrer",
                                  "cookie": "cookie",
                                  "directory": "directory",
@@ -331,6 +332,8 @@ def enrich_webddos_log(event, format_options, output_format, metadata, log_type)
         if output_format == 'json':
             event['logType'] = log_type
             event['product'] = "Cloud WAAP"
+            if "applicationName" not in event:
+                event["applicationName"] = metadata.get('application_name', '')
 
         if format_option or output_format in ['cef', 'leef']:
             # Update application name from metadata if available
