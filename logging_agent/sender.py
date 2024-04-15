@@ -2,6 +2,8 @@ import requests
 from requests.adapters import HTTPAdapter
 from requests.auth import HTTPBasicAuth
 from urllib3.util.retry import Retry
+from urllib3.exceptions import InsecureRequestWarning
+import urllib3
 import json
 import socket
 import ssl
@@ -64,15 +66,16 @@ class Sender:
                 if 'ca_cert' in tls_config and tls_config['ca_cert']:
                     # Use the specified CA certificate for verification
                     session.verify = tls_config['ca_cert']
-                    logger.info("Verifying against specified CA Cert: %s", session.verify)
+                    logger.debug("Verifying against specified CA Cert: %s", session.verify)
                 else:
                     # Verify using the Certifi CA bundle
                     session.verify = certifi.where()
-                    logger.info("Verifying with Certifi CA bundle")
+                    logger.debug("Verifying with Certifi CA bundle")
             else:
                 # SSL verification is disabled
                 session.verify = False
-                logger.info("SSL verification is disabled")
+                urllib3.disable_warnings(InsecureRequestWarning)
+                logger.debug("SSL verification is disabled")
 
             # Load client certificate and key if provided
             if 'client_cert' in tls_config and 'client_key' in tls_config and tls_config['client_cert'] and tls_config[

@@ -103,6 +103,12 @@ class Config:
                     self.config[output_type]['authentication']['auth_type'] = None
                 if output_type == 'https':
                     self.config[output_type]['verify'] = False
+            else:
+                if output_type == 'https':
+                    if type_config.get('verify', None):
+                        self.config[output_type]['verify'] = False
+
+
             # Additional normalization for TLS configuration paths
             tls_config = self.config.get('tls', {})
             if tls_config.get('verify', False):

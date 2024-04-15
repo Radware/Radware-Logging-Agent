@@ -136,20 +136,20 @@ def test_http_connection(url, headers=None, auth=None, compatibility=None):
         logger.error(f"HTTP connectivity test failed: {e}")
         return False
 
-
-def test_https_connection(url, headers=None, auth=None, tls_config=None, cert=None, compatibility=None):
+def test_https_connection(url, headers=None, auth=None, verify=True, cert=None, compatibility=None):
     """
-    Tests HTTPS connectivity with optional headers, authentication, SSL/TLS verification based on tls_config,
+    Tests HTTPS connectivity with optional headers, authentication, SSL/TLS verification,
     client certificates, and special compatibility modes.
 
     Args:
         url (str): The full URL to test connectivity with.
         headers (dict, optional): Custom headers for the request.
         auth (tuple, optional): A tuple containing the username and password for Basic authentication.
-        tls_config (dict, optional): Configuration for TLS/SSL verification. It can control whether to verify
-                                     the server's TLS certificate and specify a path to a CA bundle.
-        cert (str or tuple, optional): If String, path to an SSL client cert file (.pem).
-                                       If Tuple, ('cert', 'key') pair.
+        verify (bool or str, optional): Either a boolean, in which case it controls whether to verify
+                                        the server's TLS certificate, or a string, in which case it must
+                                        be a path to a CA bundle to use. Defaults to True.
+        cert (str or tuple, optional): If String, path to an SSL client cert file (.pem). If Tuple,
+                                       ('cert', 'key') pair.
         compatibility (str, optional): Special compatibility mode for the connectivity test.
 
     Returns:
@@ -157,6 +157,7 @@ def test_https_connection(url, headers=None, auth=None, tls_config=None, cert=No
     """
     session = requests.Session()
 
+    # Set headers, authentication, and client certificate if provided
     if headers:
         session.headers.update(headers)
     if auth:
@@ -164,24 +165,25 @@ def test_https_connection(url, headers=None, auth=None, tls_config=None, cert=No
     if cert:
         session.cert = cert
 
-    # Apply TLS/SSL verification settings from tls_config
-    if tls_config:
-        verify = tls_config.get('verify', True)  # Default to True if not specified
-        ca_cert = tls_config.get('ca_cert', None)
-
-        if verify:
-            session.verify = ca_cert if ca_cert else certifi.where()
-            verify_msg = f"Verifying against CA Cert: {session.verify}" if ca_cert else "Verifying with Certifi CA bundle"
-        else:
-            session.verify = False
-            verify_msg = "SSL verification is disabled"
-        logger.info(verify_msg)
+    # Handle SSL verification
+    if verify is True:
+        session.verify = certifi.where()  # Use certifi CA bundle by default
+        logger.info("Verifying with Certifi CA bundle")
+    elif isinstance(verify, str):
+        session.verify = verify  # Custom CA bundle path
+        logger.info(f"Verifying against specified CA Cert: {verify}")
+    else:
+        session.verify = False  # SSL verification is disabled
+        logger.info("SSL verification is disabled")
 
     try:
         if compatibility == 'splunk hec':
+            # For Splunk HEC compatibility, perform a POST request with an empty body
             response = session.post(url, data='', timeout=5)
+            # Valid response is a 400 with a specific error message
             return response.status_code == 400 and "No data" in response.json().get("text", "")
         else:
+            # Default behavior with a GET request
             response = session.get(url, timeout=5)
             return response.status_code == 200
     except requests.RequestException as e:
@@ -215,9 +217,9 @@ def verify_output_connectivity(config):
     # Authentication and Headers Setup
     auth_config = protocol_config.get('authentication', {})
     auth = None
-    if auth_config.get('auth_type', '').lower() == 'basic':
+    if auth_config.get('auth_type', '') != None and auth_config.get('auth_type', '').lower() == 'basic':
         auth = (auth_config.get('username', ''), auth_config.get('password', ''))
-    elif auth_config.get('auth_type', '').lower() == 'bearer':
+    elif auth_config.get('auth_type', '') != None and auth_config.get('auth_type', '').lower() == 'bearer':
         token = auth_config.get('token', '')
         protocol_config['custom_headers'] = {'Authorization': f'Bearer {token}'}
     headers = protocol_config.get('custom_headers', {})
