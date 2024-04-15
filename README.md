@@ -4,9 +4,14 @@ RLA is a log processing tool designed to streamline the integration of Radware p
 
 ## Current Version
 
-**Version 1.2.0** - Released on 26th February 2024
+**Version 1.2.1** - Released on 15th April 2024
 
 ## Release Notes
+
+### Version 1.2.1 15/04/2024
+- Fixed **Certificate Validation** fixed issue validating known CA signed certificates.
+- Fixed **Conversion Error** fixed small issue in one of the unified access log field.
+- Improved **Graceful Shutdown** improved handling of graceful shutdown to finish remaining tasks.
 
 ### Version 1.2.0 26/02/2024
 - Added **ECS Compatibility Mode** for enhanced log structure compatibility with both Elastic Common Schema and Radware custom schema.
