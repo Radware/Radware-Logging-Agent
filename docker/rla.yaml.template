@@ -7,110 +7,104 @@
 
 general:
   # Name of the log file for the agent's internal logs. Default for Docker: "agent.rla"
-  log_file: "${LOG_FILE:-agent.rla}"
+  log_file: '${LOG_FILE}'
 
   # Directory for storing temporary files. Default for Docker: "/tmp/"
-  output_directory: "${OUTPUT_DIRECTORY:-/tmp/}"
+  output_directory: '${OUTPUT_DIRECTORY}'
 
   # Directory for log files. Default for Docker: "/var/log/rla/"
-  log_directory: "${LOG_DIRECTORY:-/var/log/rla/}"
+  log_directory: '${LOG_DIRECTORY}'
 
   # Logging level for the agent's internal logs. Options: "INFO", "WARNING", "DEBUG", "ERROR".
-  logging_levels: "${LOGGING_LEVELS:-INFO}"
+  logging_levels: '${LOGGING_LEVELS:-INFO}'
 
 # AWS Simple Queue Service (SQS) Settings
 # ---------------------------------------
 # Credentials and details for integration with AWS SQS, used for retrieving logs.
 aws_credentials:
-  access_key_id: ${AWS_ACCESS_KEY_ID}  # AWS Access Key ID for authentication.
-  secret_access_key: ${AWS_SECRET_ACCESS_KEY}  # AWS Secret Access Key for authentication.
-  region: ${AWS_REGION}  # AWS region where the SQS queue is located.
+  access_key_id: '${AWS_ACCESS_KEY_ID}'  # AWS Access Key ID for authentication.
+  secret_access_key: '${AWS_SECRET_ACCESS_KEY}'  # AWS Secret Access Key for authentication.
+  region: '${AWS_REGION:-us-east-1}'  # AWS region where the SQS queue is located.
 
 # Agent Configuration
 # -------------------
 # Configuration of individual agents for log collection. Each agent can be configured for different sources and products.
 agents:
-  - name: "${AGENT_NAME}"  # Unique name of the agent. Default: "cloud"
-    type: "${AGENT_TYPE}"  # Type of log source. Current options: "sqs". Default: "sqs"
-    num_worker_threads: ${AGENT_NUM_THREADS}  # Number of worker threads for processing messages. Default: 5
-    product: "${AGENT_PRODUCT}"  # The product type associated with this agent. Current options: "cloud_waap". Default: "cloud_waap"
+  - name: '${AGENT_NAME:-cloud}'  # Unique name of the agent. Default: "cloud"
+    type: '${AGENT_TYPE:-sqs}'  # Type of log source. Current options: "sqs". Default: "sqs"
+    num_worker_threads: ${AGENT_NUM_THREADS:-5}  # Number of worker threads for processing messages. Default: 5
+    product: '${AGENT_PRODUCT:-cloud_waap}'  # The product type associated with this agent. Current options: "cloud_waap". Default: "cloud_waap"
     sqs_settings:
-      queue_name: "${AGENT_SQS_QUEUE_NAME}"  # SQS queue name to poll for messages. Default: ""
-      delete_on_failure: ${AGENT_DELETE_ON_FAILURE}  # Whether to delete messages from the queue if processing fails. Default: false
+      queue_name: '${AGENT_SQS_QUEUE_NAME}'  # SQS queue name to poll for messages. Default: ""
+      delete_on_failure: ${AGENT_DELETE_ON_FAILURE:-false}  # Whether to delete messages from the queue if processing fails. Default: false
     logs:
-      Access: ${AGENT_LOG_ACCESS}  # Enable or disable ingestion of 'Access' logs. Default: true
-      WAF: ${AGENT_LOG_WAF}  # Enable or disable ingestion of 'WAF' logs. Default: true
-      Bot: ${AGENT_LOG_BOT}  # Enable or disable ingestion of 'Bot' logs. Default: true
-      DDoS: ${AGENT_LOG_DDOS}  # Enable or disable ingestion of 'DDoS' logs. Default: true
-      WebDDoS: ${AGENT_LOG_WEBDDOS}  # Enable or disable ingestion of 'WebDDoS' logs. Default: true
-      CSP: ${AGENT_LOG_CSP}  # Enable or disable ingestion of 'CSP' logs. Default: true
-
+      Access: ${AGENT_LOG_ACCESS:-true}  # Enable or disable ingestion of 'Access' logs. Default: true
+      WAF: ${AGENT_LOG_WAF:-true}  # Enable or disable ingestion of 'WAF' logs. Default: true
+      Bot: ${AGENT_LOG_BOT:-true}  # Enable or disable ingestion of 'Bot' logs. Default: true
+      DDoS: ${AGENT_LOG_DDOS:-true}  # Enable or disable ingestion of 'DDoS' logs. Default: true
+      WebDDoS: ${AGENT_LOG_WEBDDOS:-true}  # Enable or disable ingestion of 'WebDDoS' logs. Default: true
+      CSP: ${AGENT_LOG_CSP:-true}  # Enable or disable ingestion of 'CSP' logs. Default: true
 
 # Output Configuration
 # --------------------
 # Configures how logs are outputted after processing.
 output:
-  output_format: "${OUTPUT_FORMAT}"  # The format of the output logs. Options: 'json', 'cef', 'leef'. Default: 'json'
-  type: "${OUTPUT_TYPE}"  # The transport protocol for sending logs. Options: 'http', 'https', 'tcp', 'udp', 'tls'. Default: 'http'
-  destination: "${OUTPUT_DESTINATION}"  # Destination where logs are sent. Format varies based on 'type'. Default: ""
-  batch: ${OUTPUT_BATCH}  # Determines whether to batch send logs. Note: not compatible with UDP. Default: true
-  compatibility_mode: "${OUTPUT_COMPATIBILITY_MODE}"  # Sets the log forwarding compatibility mode.
-                                                      # Options: "Splunk HEC", "ECS", "none".
-                                                      # Requirements for compatibility modes:
-                                                      # - Splunk HEC: Must configure 'type' as either 'http' or 'https' and 'output_format' as 'json'.
-                                                      # - ECS: Must be configured with 'type' as either 'http', 'https', 'tls', and 'tcp' and 'output_format' as 'json'. Default: "none"
+  output_format: '${OUTPUT_FORMAT:-json}'  # The format of the output logs. Options: 'json', 'cef', 'leef'. Default: 'json'
+  type: '${OUTPUT_TYPE:-http}'  # The transport protocol for sending logs. Options: 'http', 'https', 'tcp', 'udp', 'tls'. Default: 'http'
+  destination: '${OUTPUT_DESTINATION}'  # Destination where logs are sent. Format varies based on 'type'. Default: ""
+  batch: ${OUTPUT_BATCH:-true}  # Determines whether to batch send logs. Note: not compatible with UDP. Default: true
+  compatibility_mode: '${OUTPUT_COMPATIBILITY_MODE:-none}'  # Sets the log forwarding compatibility mode. Default: "none"
 
 # TLS Configuration
 # -----------------
 # Settings for secure TCP communication using TLS.
 tls:
-  verify: ${TLS_VERIFY}  # Whether to verify the server's SSL certificate.
-  ca_cert: "${TLS_CA_CERT}"  # Path to the CA certificate file.
-  client_cert: "${TLS_CLIENT_CERT}"  # Path to the client's SSL certificate.
-  client_key: "${TLS_CLIENT_KEY}"  # Path to the client's SSL key.
+  verify: ${TLS_VERIFY:-false}  # Whether to verify the server's SSL certificate. Default: false
+  ca_cert: '${TLS_CA_CERT}'  # Path to the CA certificate file. Default: ""
+  client_cert: '${TLS_CLIENT_CERT}'  # Path to the client's SSL certificate. Default: ""
+  client_key: '${TLS_CLIENT_KEY}'  # Path to the client's SSL key. Default: ""
 
 # HTTP/HTTPS Configuration
 # ------------------------
 # Settings specific to HTTP/HTTPS communication.
 http:
   authentication:
-    auth_type: "${HTTP_AUTH_TYPE}"  # Options: "none", "basic", "bearer". Use "none" for no authentication.
+    auth_type: '${HTTP_AUTH_TYPE:-none}'  # Options: "none", "basic", "bearer". Use "none" for no authentication.
     # Conditional environment variable placeholders. Uncomment and set these if using basic or bearer authentication.
-    # username: "${HTTP_BASIC_USERNAME}"       # Username for Basic authentication. Required if auth_type is "basic".
-    # password: "${HTTP_BASIC_PASSWORD}"       # Password for Basic authentication. Required if auth_type is "basic".
-    # token: "${HTTP_BEARER_TOKEN}"            # Token for Bearer authentication. Required if auth_type is "bearer".
+    # username: '${HTTP_BASIC_USERNAME}'       # Username for Basic authentication. Default: "".
+    # password: '${HTTP_BASIC_PASSWORD}'       # Password for Basic authentication. Default: "".
+    # token: '${HTTP_BEARER_TOKEN}'            # Token for Bearer authentication. Default: "".
 
   # Custom headers to include in the HTTP request. Specify as key-value pairs.
-  # Conditional custom headers. Uncomment to define specific headers.
+  # Uncomment to add specific headers as needed.
   # custom_headers:
-  #   X-Custom-Header: "${HTTP_CUSTOM_HEADER}"
-  #   Another-Header: "${HTTP_ANOTHER_HEADER}"
+  #   Authorization: '${HTTP_AUTHORIZATION_HEADER}'
+
 
 https:
-  verify: ${HTTPS_VERIFY}  # Whether to verify the server's SSL certificate. Default: false
-  ca_cert: "${HTTPS_CA_CERT}"  # Path to the CA certificate file, if verification is enabled.
-  client_cert: "${HTTPS_CLIENT_CERT}"  # Path to the client's SSL certificate, if mutual TLS is used.
-  client_key: "${HTTPS_CLIENT_KEY}"  # Path to the client's SSL key, if mutual TLS is used.
+  verify: ${HTTPS_VERIFY:-false}  # Whether to verify the server's SSL certificate. Default: false
+  ca_cert: '${HTTPS_CA_CERT}'  # Path to the CA certificate file. Default: ""
+  client_cert: '${HTTPS_CLIENT_CERT}'  # Path to the client's SSL certificate. Default: ""
+  client_key: '${HTTPS_CLIENT_KEY}'  # Path to the client's SSL key. Default: ""
 
+  # Authentication settings for HTTPS communication.
   authentication:
-    auth_type: "${HTTPS_AUTH_TYPE}"  # Options: "none", "basic", "bearer".
-    # Conditional placeholders. Uncomment to use.
-    # username: "${HTTPS_BASIC_USERNAME}"       # Required for "basic" auth_type.
-    # password: "${HTTPS_BASIC_PASSWORD}"       # Required for "basic" auth_type.
-    # token: "${HTTPS_BEARER_TOKEN}"            # Required for "bearer" auth_type.
+    auth_type: '${HTTPS_AUTH_TYPE:-none}'  # Options: "none", "basic", "bearer". Default: "none"
+    # username: '${HTTPS_BASIC_USERNAME}'       # Required for "basic" auth_type. Default: "".
+    # password: '${HTTPS_BASIC_PASSWORD}'       # Required for "basic" auth_type. Default: "".
+    # token: '${HTTPS_BEARER_TOKEN}'           # Required for "bearer" auth_type. Default: ""
 
-  # Custom headers for HTTPS requests.
-  # Conditional custom headers. Uncomment to define specific headers.
-  # custom_headers:
-  #   X-Secure-Header: "${HTTPS_SECURE_HEADER}"
-  #   Another-Secure-Header: "${HTTPS_ANOTHER_SECURE_HEADER}"
+  # Custom headers for HTTPS requests. Uncomment to add specific headers as needed.
+  #custom_headers:
+  #  Authorization: ${HTTPS_AUTHORIZATION_HEADER}
+
 
 # Format-Specific Configurations
 # ------------------------------
 formats:
   json:
-    time_format: "${JSON_TIME_FORMAT}"  # Time format for JSON logs. Default: "ISO8601"
-    unify_fields: ${JSON_UNIFY_FIELDS}  # Whether to unify fields. Default: true
+    time_format: '${JSON_TIME_FORMAT:-ISO8601}'  # Time format for JSON logs. Default: "ISO8601"
+    unify_fields: ${JSON_UNIFY_FIELDS:-true}  # Whether to unify fields. Default: true
   # Uncomment below sections as needed for other formats
   # cef:
   #   delimiter: "${CEF_DELIMITER}"  # Delimiter used to separate CEF events. Default: "\n"
@@ -129,16 +123,14 @@ formats:
 
 
 
-# Debug Configuration
-# -------------------
-# Optional debug settings improve troubleshooting. By default, both are set to true to ensure
-# optimal connectivity and configuration verification. If specific debugging needs arise,
-# such as bypassing initial checks or when not receiving a 200 OK from the destination,
-# you may explicitly set these to false.
+  # Debug Configuration
+  # -------------------
+  # Optional debug settings improve troubleshooting. By default, both are set to true to ensure
+  # optimal connectivity and configuration verification. If specific debugging needs arise,
+  # such as bypassing initial checks or when not receiving a 200 OK from the destination,
+  # you may explicitly set these to false.
 
-# Uncomment and set to false as needed:
-debug:
-  verify_destination_connectivity: ${DEBUG_VERIFY_DESTINATION_CONNECTIVITY}  # Disable to skip connectivity checks to the destination.
-  config_verification: ${DEBUG_CONFIG_VERIFICATION} # Disable to skip initial configuration and connectivity verifications.
-
-
+  # Uncomment and set to false as needed:
+  # debug:
+  #   verify_destination_connectivity: ${DEBUG_VERIFY_DESTINATION_CONNECTIVITY}  # Disable to skip connectivity checks to the destination.
+  #   config_verification: ${DEBUG_CONFIG_VERIFICATION} # Disable to skip initial configuration and connectivity verifications.

@@ -1,52 +1,77 @@
 #!/bin/bash
 
-# Populate the configuration file from the template using environment variables for agent1
-envsubst < /usr/src/app/rla.yaml.template > /usr/src/app/rla.yaml
+# Determine the configuration source
+CONFIGURATION_SOURCE="${CONFIGURATION_SOURCE:-env}" # Defaults to "env" if not set
 
-# Check for additional agents and append their configurations
-i=2
-while : ; do
-    # Check if the current agent should be added
-    if [ -z "$(eval echo \${AGENT${i}_SQS_QUEUE_NAME})" ]; then
-        break
+if [[ "$CONFIGURATION_SOURCE" == "s3" ]]; then
+    # --- S3 Configuration Section ---
+    # This section only happens if configured to use S3, based on the CONFIGURATION_SOURCE variable
+    echo "Downloading configuration file from S3"
+    if [ -z "$S3_BUCKET" ] || [ -z "$S3_KEY" ]; then
+        echo "Error: S3_BUCKET and S3_KEY environment variables must be set for S3 configuration" >&2
+        exit 1
     fi
 
-    # Read environment variables for each agent configuration
-    num_threads=$(eval echo \${AGENT${i}_NUM_THREADS:-5})  # Default to 5 threads if not specified
-    agent_product=$(eval echo \${AGENT${i}_PRODUCT:-"cloud_waap"})  # Default product
-    agent_type=$(eval echo \${AGENT${i}_TYPE:-"sqs"})  # Default type
-    queue_name=$(eval echo \${AGENT${i}_SQS_QUEUE_NAME})
-    delete_on_failure=$(eval echo \${AGENT${i}_DELETE_ON_FAILURE:-false})  # Default to false
+    # Use IAM role for accessing S3 (credentials are automatically provided in ECS environment)
+    aws s3 cp s3://$S3_BUCKET/$S3_KEY /usr/src/app/rla.yaml
+    if [ $? -ne 0 ]; then
+        echo "Error: Failed to download configuration file from S3" >&2
+        exit 1
+    fi
 
-    # Logs configuration
-    access=$(eval echo \${AGENT${i}_LOG_ACCESS:-true})
-    waf=$(eval echo \${AGENT${i}_LOG_WAF:-true})
-    bot=$(eval echo \${AGENT${i}_LOG_BOT:-true})
-    ddos=$(eval echo \${AGENT${i}_LOG_DDOS:-true})
-    webddos=$(eval echo \${AGENT${i}_LOG_WEBDDOS:-true})
-    csp=$(eval echo \${AGENT${i}_LOG_CSP:-true})
+    echo "S3 configuration file downloaded successfully."
 
-    # Append configuration for this agent
-    cat << EOF >> /usr/src/app/rla.yaml
-  - name: "agent$i"
-    type: "$agent_type"
-    num_worker_threads: $num_threads
-    product: "$agent_product"
-    sqs_settings:
-      queue_name: "$queue_name"
-      delete_on_failure: $delete_on_failure
-    logs:
-      Access: $access
-      WAF: $waf
-      Bot: $bot
-      DDoS: $ddos
-      WebDDoS: $webddos
-      CSP: $csp
-EOF
+    # ---- End of S3 Section ----
 
-    # Increment to check for the next agent
-    ((i++))
-done
+else
+    # --- Environment Variable Configuration Section ---
+    # This section runs if the configuration is set to use environment variables or is the default
+
+    # Read environment variables and replace placeholders in rla.yaml.template
+    echo "Populating rla.yaml.template with environment variables..."
+    cp rla.yaml.template rla.yaml
+
+    # Replace placeholders in rla.yaml with environment variable values or default values
+    while IFS= read -r line; do
+        while [[ "$line" =~ (\$\{([a-zA-Z_][a-zA-Z0-9_]*)(:-([^}]*))?\}) ]]; do
+            whole_match="${BASH_REMATCH[1]}"
+            var_name="${BASH_REMATCH[2]}"
+            default_value="${BASH_REMATCH[4]}"
+
+            # Check if the environment variable exists
+            if [[ -n "${!var_name}" ]]; then
+                value="${!var_name}"
+            else
+                value="${default_value}"
+            fi
+
+            # Escape ampersands for parameter substitution
+            value="${value//&/\\&}"
+
+            # Replace the placeholder with the actual value
+            line="${line//$whole_match/$value}"
+        done
+        # Print modified line to the rla.yaml file
+        echo "$line"
+    done < rla.yaml.template > rla.yaml
+
+    # Verify the output
+    echo "Contents of the generated rla.yaml:"
+    cat rla.yaml
+
+    # Verify critical variables are set in the generated rla.yaml
+    CRITICAL_VARS=("AWS_ACCESS_KEY_ID" "AWS_SECRET_ACCESS_KEY")
+
+    for var in "${CRITICAL_VARS[@]}"; do
+        if grep -q "\${${var}}" rla.yaml; then
+            echo "Error: Critical variable ${var} not replaced in rla.yaml. Please check environment variables." >&2
+            exit 1
+        fi
+    done
+
+    # ---- End of Environment Variable Section ----
+fi
 
 # Start the application
+echo "Starting Radware Logging Agent..."
 exec python ./radware_logging_agent.py

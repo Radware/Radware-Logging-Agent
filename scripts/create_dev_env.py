@@ -54,4 +54,4 @@ def setup_dev_environment(version_number):
     print(f"Development environment setup at: {base_path}")
 
 # Example usage
-setup_dev_environment("1.2.1")
+setup_dev_environment("1.3.1")

@@ -31,7 +31,8 @@ if [ -d "$APP_DIR" ]; then
         esac
     fi
 else
-    echo "Installing RLA."
+    echo "Creating RLA directory."
+    mkdir -p "$APP_DIR" || { echo "Failed to create directory $APP_DIR." ; exit 1; }
 fi
 
 # Attempt to identify the distribution
@@ -46,28 +47,23 @@ print_instructions() {
 ensure_dependencies() {
     if [[ "$distro" == "ubuntu" || "$distro" == "debian" ]]; then
         echo "Ensuring python3-venv and pip3 are installed..."
-        apt-get update && apt-get install -y python3-venv python3-pip
+        apt-get update && apt-get install -y python3-venv python3-pip || { echo "Failed to install dependencies. Exiting." ; exit 1; }
     elif [[ "$distro" == "centos" || "$distro" == "rhel" ]]; then
         echo "Ensuring python3-venv and pip3 are installed..."
-        yum install -y python3-venv python3-pip
+        yum install -y python3-venv python3-pip || { echo "Failed to install dependencies. Exiting." ; exit 1; }
     elif [[ "$distro" == "fedora" ]]; then
         echo "Ensuring python3-venv and pip3 are installed..."
-        dnf install -y python3-venv python3-pip
+        dnf install -y python3-venv python3-pip || { echo "Failed to install dependencies. Exiting." ; exit 1; }
     else
         echo "Unsupported distribution. Please manually install python3-venv and pip3."
         exit 1
     fi
 }
 
-
 # Function to check Python 3.8+ installation
 check_python() {
     if command -v python3 &>/dev/null; then
-        PY_VER=$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:3])))')
-        if [ "$(printf '%s\n' "3.8" "$PY_VER" | sort -V | head -n1)" != "3.8" ]; then
-            echo "Python 3.8 or higher is required. Installed version is $PY_VER."
-            exit 1
-        fi
+        python3 -c 'import sys; exit(not (sys.version_info >= (3, 8)))' || { echo "Python 3.8 or higher is required." ; exit 1; }
     else
         echo "Python 3 is not installed. Please install Python 3.8 or higher."
         exit 1
@@ -92,13 +88,19 @@ if ! id "rla" &>/dev/null; then
     echo "Creating rla user and group..."
     useradd -r -s /bin/false rla
     mkdir -p /home/rla
-    chown rla:rla /home/rla
+    chown rla:rla /home/rla || { echo "Failed to set ownership for /home/rla." ; exit 1; }
 fi
 
 # Set up necessary directories
 echo "Creating necessary directories..."
 mkdir -p /var/log/rla
-chown -R rla:rla /var/log/rla
+chown -R rla:rla /var/log/rla || { echo "Failed to set ownership for /var/log/rla." ; exit 1; }
+
+# Stop the service if it is running before copying files
+if systemctl is-active --quiet $SERVICE_NAME; then
+    echo "Stopping the existing RLA service..."
+    systemctl stop $SERVICE_NAME
+fi
 
 # Copy application files to /etc/rla/ and set correct permissions, excluding rla.yaml if necessary
 echo "Copying application files to $APP_DIR..."
@@ -106,11 +108,10 @@ for file in ./*; do
     if [ "$overwrite_config" = false ] && [[ "$(basename "$file")" == "rla.yaml" ]]; then
         echo "Skipping rla.yaml as per user choice."
     else
-        cp -r "$file" "$APP_DIR"
+        cp -r "$file" "$APP_DIR" || { echo "Failed to copy $file." ; exit 1; }
     fi
 done
-chown -R rla:rla $APP_DIR
-
+chown -R rla:rla $APP_DIR || { echo "Failed to set ownership for $APP_DIR." ; exit 1; }
 
 # Set up Python virtual environment and install dependencies as rla user
 echo "Setting up Python virtual environment and installing dependencies in $APP_DIR"
@@ -119,7 +120,7 @@ cd $APP_DIR;
 python3 -m venv venv; # Create virtual environment
 source venv/bin/activate;
 pip3 install --no-cache-dir -r requirements.txt # Install dependencies
-"
+" || { echo "Failed to set up virtual environment and install dependencies." ; exit 1; }
 
 # Set up log rotation for /var/log/rla
 echo "Setting up log rotation for /var/log/rla..."
@@ -155,5 +156,6 @@ EOF
 # Reload systemd, enable and start service
 systemctl daemon-reload
 systemctl enable $SERVICE_NAME
+systemctl start $SERVICE_NAME || { echo "Failed to start $SERVICE_NAME." ; exit 1; }
 
 echo "Installation and service setup completed successfully."

@@ -72,4 +72,4 @@ def generate_release(version_number):
     print(f"Release generated: {release_path}")
 
 # Example usage
-generate_release("1.2.1")
+generate_release("1.3.1")

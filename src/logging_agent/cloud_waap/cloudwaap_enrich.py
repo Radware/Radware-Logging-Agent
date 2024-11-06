@@ -29,7 +29,7 @@ def enrich_access_log(event, format_options, output_format, metadata, log_type):
 
 
             output_time_format = format_options.get('time_format', "epoch_ms_str")
-            access_input_format = '%d/%b/%Y:%H:%M:%S %z'
+            access_input_format = '%d/%b/%Y:%H:%M:%S.%f %z'
             if 'time' in event:
                 event['time'] = CloudWAAPProcessor.transform_time(
                     event['time'],
