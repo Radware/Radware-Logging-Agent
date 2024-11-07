@@ -58,7 +58,6 @@ else
 
     # Verify the output
     echo "Contents of the generated rla.yaml:"
-    cat rla.yaml
 
     # Verify critical variables are set in the generated rla.yaml
     CRITICAL_VARS=("AWS_ACCESS_KEY_ID" "AWS_SECRET_ACCESS_KEY")
