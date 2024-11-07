@@ -4,9 +4,18 @@ RLA is a log processing tool designed to streamline the integration of Radware p
 
 ## Current Version
 
-**Version 1.2.1** - Released on 15th April 2024
+**Version 1.3.1** - Released on 7th November 2024
 
 ## Release Notes
+
+
+### Version 1.3.1 - 07/11/2024
+
+- Improved **Enhanced Docker Deployment Options**: Improved Docker deployment by avoiding internal logging to `agent.log` when running inside a Docker container, instead logging to the console for better integration with container logging practices. Added the ability to import `rla.yaml` from an S3 bucket directly through the Docker entry point script. Also introduced a fully environment variable-driven configuration using `rla.yaml.template`, providing a flexible way to configure RLA based entirely on environment variables.
+
+### Version 1.3.0 - 29/09/2024
+
+- Added **Docker Deployment Added**: Introduced Docker deployment with a provided Dockerfile, allowing for easier and more consistent deployment of RLA in containerized environments.
 
 ### Version 1.2.1 15/04/2024
 - Fixed **Certificate Validation** fixed issue validating known CA signed certificates.
@@ -143,6 +152,14 @@ Enhance troubleshooting with optional debug settings, ensuring connectivity and 
 - **verify_destination_connectivity**: Checks connectivity to the specified destination. Default: `true`. Disable for debugging or if the destination does not return a 200 OK response.
 - **config_verification**: Performs initial checks to verify configuration and connectivity. Default: `true`. Disable to bypass these verifications.
 
+## Environment Variables for Docker-based Deployment
+
+These variables are used to control deployment behavior, and are **not configured through `rla.yaml`.** Instead, they are specified as environment variables for Docker-based deployments.
+
+- **CONFIGURATION_SOURCE**: Defines the configuration source for RLA when running in Docker or ECS. Available options:
+  - **S3**: Use S3 as the source to fetch the `rla.yaml` configuration. If any other value is provided (or not set), the default is to use environment variables based on `rla.yaml.template`.
+- **S3_BUCKET**: The name of the S3 bucket where the `rla.yaml` configuration file is stored. This is required if `CONFIGURATION_SOURCE` is set to **S3**.
+- **S3_KEY**: The S3 key (path and file name) where the `rla.yaml` configuration is stored. This is also required if `CONFIGURATION_SOURCE` is set to **S3**.
 
 For detailed explanations and additional configuration options, refer to the official RLA documentation or support resources.
 
@@ -175,7 +192,7 @@ output:
   destination: 'your_destination_address'
 ```
 
-## Installation on Linux
+## Deployment on Linux
 
 To install the Radware Logging Agent on a Linux system, follow these steps:
 
@@ -207,14 +224,37 @@ If your setup requires certificates, ensure they are correctly placed in the des
    ```bash
    sudo systemctl start rla.service
    ```
-   
 
+## Deployment Using Docker
+
+The Radware Logging Agent (RLA) can be deployed using the included Dockerfile. Below are several deployment options that cater to different environments and configurations.
+
+### Local or Private Cloud-based Deployment
+
+For local deployments or those within private cloud environments, you can use the provided `rla.yaml.template` to configure the RLA instance.
+
+- **Environment Variables**: The environment variables specified within `rla.yaml.template` are used to set the necessary configuration parameters for RLA. Simply provide the appropriate values in your Docker environment.
+- **Custom Sections**: If the provided `rla.yaml.template` contains commented sections, uncomment them as needed and ensure you supply the required environment variable values.
+
+### AWS ECS Deployment Using S3 to Store `rla.yaml`
+
+When running RLA on AWS ECS and you prefer to store your configuration in S3:
+
+- **Environment Variables**:
+  - Set `CONFIGURATION_SOURCE` to **S3**.
+  - Add `S3_BUCKET` (the bucket name) and `S3_KEY` (the path and file name).
+- **Permissions**: Ensure that the ECS task role has the appropriate permissions to access the S3 bucket and key. This allows RLA to download the configuration file (`rla.yaml`) whenever a new container starts. This method provides centralized configuration management, especially useful in scalable environments.
+
+### AWS ECS Deployment Using Parameter Store and Secret Manager
+
+You can also use the environment variable-based configuration option in conjunction with AWS Systems Manager Parameter Store and AWS Secrets Manager. By mapping Parameters and Secrets to environment variables in the ECS task definition, you can manage the configuration without embedding sensitive information directly into your Docker environment. This provides an additional layer of security and flexibility for deploying RLA.
 ## Roadmap / Future Plans
 
 The Radware Logging Agent is continually evolving, with plans to expand its capabilities and support a wider range of functionalities. Here's what's on the horizon:
 
-### Near-Term Goals
-- **Cloud WAAP API Integration**: In addition to the current AWS S3 support, we plan to introduce Cloud WAAP API as another input option. This enhancement will provide more flexibility in how logs are ingested from Radware Cloud WAAP.
+## Near-Term Goals
+
+- **Cloud WAAP Local File Integration**: In addition to the current support for AWS S3, we plan to introduce local file ingestion to supplement the upcoming SFTP export feature from Cloud WAAP. This feature will enable an end-to-end pipeline from Cloud WAAP to SFTP and eventually to SIEM using various protocols and formats.
 
 ### Long-Term Vision
 - **Expanding Input Options**: Future updates aim to incorporate additional input methods such as SCP, TCP, and HTTP. This expansion will facilitate the support of a broader range of Radware products.

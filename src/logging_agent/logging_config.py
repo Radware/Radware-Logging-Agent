@@ -5,7 +5,6 @@ from .config_reader import Config  # Adjust import path based on your project st
 # Check if we are in verification mode
 verify_mode = os.getenv('RLA_VERIFY_MODE', '0') == '1'
 rla_environment = os.getenv('RLA_ENVIRONMENT', '')
-print("rla_environment: " + rla_environment)
 # Default logging level
 log_level = logging.INFO
 

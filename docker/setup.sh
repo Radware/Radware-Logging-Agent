@@ -1,5 +1,6 @@
 #!/bin/bash
 
+export RLA_ENVIRONMENT=docker
 # Determine the configuration source
 CONFIGURATION_SOURCE="${CONFIGURATION_SOURCE:-env}" # Defaults to "env" if not set
 
