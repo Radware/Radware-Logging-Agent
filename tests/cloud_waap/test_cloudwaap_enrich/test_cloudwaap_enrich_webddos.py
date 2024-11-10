@@ -2,7 +2,6 @@
 from logging_agent.cloud_waap.cloudwaap_enrich import enrich_webddos_log
 import pytest
 from datetime import datetime, timezone
-import time
 
 
 
