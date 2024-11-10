@@ -323,8 +323,8 @@ class CloudWAAPProcessor:
         Args:
             time_data (str or int): The time data to be transformed.
             input_format (str): The format of the input time string. Supported formats include
-                                'epoch_ms', '%d/%b/%Y:%H:%M:%S %z', '%d-%m-%Y %H:%M:%S',
-                                '%b %d %Y %H:%M:%S', 'ISO8601', and 'ISO8601_NS'.
+                                'epoch_ms', '%d/%b/%Y:%H:%M:%S %z', '%d/%b/%Y:%H:%M:%S.%f %z',
+                                '%d-%m-%Y %H:%M:%S', '%b %d %Y %H:%M:%S', 'ISO8601', and 'ISO8601_NS'.
             output_format (str): The desired format for the output time string. Supported formats include
                                  'epoch_ms_str', 'epoch_ms_int', 'MM dd yyyy HH:mm:ss', and 'ISO8601'.
 
@@ -340,8 +340,8 @@ class CloudWAAPProcessor:
                 while len(time_string) < 13:
                     time_string += '0'
                 epoch_time_ms = int(time_string)
-            elif input_format in ['%d/%b/%Y:%H:%M:%S %z', "%d-%m-%Y %H:%M:%S", '%b %d %Y %H:%M:%S', 'ISO8601',
-                                  'ISO8601_NS']:
+            elif input_format in ['%d/%b/%Y:%H:%M:%S %z', '%d/%b/%Y:%H:%M:%S.%f %z', "%d-%m-%Y %H:%M:%S",
+                                  '%b %d %Y %H:%M:%S', 'ISO8601', 'ISO8601_NS']:
                 if input_format == 'ISO8601_NS':
                     base_time, ns = time_data[:-1].split('.')
                     parsed_time = datetime.strptime(base_time, '%Y-%m-%dT%H:%M:%S')
@@ -352,14 +352,13 @@ class CloudWAAPProcessor:
             else:
                 raise ValueError(f"Unsupported input format: {input_format}")
 
+            # Transform to output format
             if output_format == 'epoch_ms_str' or output_format == 'epoch_ms_int':
-                # Ensure output is represented with 13 characters
                 output = str(epoch_time_ms)
                 while len(output) < 13:
                     output += '0'
                 return output if output_format == 'epoch_ms_str' else int(output)
 
-                return epoch_time_ms
             elif output_format == 'MM dd yyyy HH:mm:ss':
                 return datetime.utcfromtimestamp(epoch_time_ms / 1000.0).strftime('%m %d %Y %H:%M:%S')
             elif output_format == 'ISO8601':
@@ -369,7 +368,6 @@ class CloudWAAPProcessor:
         except Exception as e:
             logger.error(f"Error transforming time: {e}")
             return None
-
     @staticmethod
     def extract_metadata(key, product, log_type):
         """

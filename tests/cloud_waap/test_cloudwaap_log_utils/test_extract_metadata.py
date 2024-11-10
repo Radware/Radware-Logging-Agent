@@ -1,7 +1,6 @@
 import pytest
 from logging_agent.cloud_waap.cloudwaap_log_utils import CloudWAAPProcessor
 from unittest.mock import patch
-from datetime import datetime
 
 # Sample data for testing
 valid_key = "valid_key_example"

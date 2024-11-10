@@ -383,14 +383,23 @@ def verify_tls_config(tls_config):
 
 
 def verify_general_config(general_config):
+    rla_environment = os.getenv('RLA_ENVIRONMENT', '').lower()
+
+    # Only verify 'log_directory' if not running in Docker
     for key in ['output_directory', 'log_directory']:
+        if key == 'log_directory' and rla_environment == 'docker':
+            continue  # Skip the check for log_directory in Docker environment
+
         if not os.path.exists(general_config[key]):
             logger.error(f"Path does not exist: {general_config[key]}")
             return False
+
+    # Verify logging levels
     valid_log_levels = ["INFO", "WARNING", "DEBUG", "ERROR"]
     if general_config['logging_levels'] not in valid_log_levels:
         logger.error(f"Invalid logging level: {general_config['logging_levels']}")
         return False
+
     return True
 
 def verify_selected_output_config(output_config, formats_config):

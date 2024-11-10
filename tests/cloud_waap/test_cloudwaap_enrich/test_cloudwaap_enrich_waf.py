@@ -2,7 +2,6 @@ import pytest
 from unittest.mock import patch
 from logging_agent.cloud_waap.cloudwaap_enrich import enrich_access_log, enrich_waf_log, enrich_bot_log, enrich_webddos_log, enrich_ddos_log, enrich_csp_log
 from datetime import datetime, timezone
-import time
 
 
 
