@@ -1,0 +1,74 @@
+name: Manual Docker Build and Push
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Docker image version tag to publish'
+        required: true
+      mark_latest:
+        description: 'Also tag and push the image as latest'
+        required: false
+        default: false
+        type: boolean
+      source_branch:
+        description: 'Git branch to build from'
+        required: true
+        default: 'main'
+
+jobs:
+  build-and-push:
+    name: Build and push Docker image to Amazon ECR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.source_branch }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Prepare image tags
+        id: prep-tags
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY }}
+          VERSION_TAG: ${{ github.event.inputs.version_tag }}
+          MARK_LATEST: ${{ github.event.inputs.mark_latest }}
+        run: |
+          if [ -z "${REPOSITORY}" ]; then
+            echo "AWS_ECR_REPOSITORY secret must be set." >&2
+            exit 1
+          fi
+
+          TAGS_LIST=("${REGISTRY}/${REPOSITORY}:${VERSION_TAG}")
+
+          if [ "${MARK_LATEST}" = 'true' ]; then
+            TAGS_LIST+=("${REGISTRY}/${REPOSITORY}:latest")
+          fi
+
+          {
+            echo "tags<<'TAGS'";
+            for tag in "${TAGS_LIST[@]}"; do
+              echo "${tag}";
+            done;
+            echo 'TAGS';
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.prep-tags.outputs.tags }}
