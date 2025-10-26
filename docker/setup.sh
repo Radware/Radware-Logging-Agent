@@ -74,4 +74,4 @@ fi
 
 # Start the application
 echo "Starting Radware Logging Agent..."
-exec python ./radware_logging_agent.py
+exec python ./src/radware_logging_agent.py
