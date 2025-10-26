@@ -6,100 +6,60 @@ on:
       version_tag:
         description: "Docker image version tag to publish (e.g. 1.8.3)"
         required: true
+        type: string
       mark_latest:
         description: "Also tag and push the image as latest"
         required: false
         default: false
         type: boolean
 
-concurrency:
-  group: ecr-${{ github.workflow }}-${{ github.ref_name }}-${{ github.event.inputs.version_tag }}
-  cancel-in-progress: false
-
 jobs:
   build-and-push:
-    # REMOVE the if condition - it's not needed since workflow_dispatch is the only trigger
     name: Build and push Docker image to Amazon ECR
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    permissions:
-      contents: read
-
-    env:
-      AWS_REGION: ${{ secrets.AWS_REGION }}
-      ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY }}
-      VERSION_TAG: ${{ github.event.inputs.version_tag }}
-      # Fix boolean handling
-      MARK_LATEST: ${{ github.event.inputs.mark_latest == true && 'true' || 'false' }}
 
     steps:
-      - name: Check required secrets are present
-        run: |
-          set -euo pipefail
-          [ -n "${AWS_REGION}" ] || { echo "Missing secret: AWS_REGION" >&2; exit 1; }
-          [ -n "${ECR_REPOSITORY}" ] || { echo "Missing secret: AWS_ECR_REPOSITORY" >&2; exit 1; }
-          [ -n "${ACCESS_KEY}" ] || { echo "Missing secret: AWS_ACCESS_KEY_ID" >&2; exit 1; }
-          [ -n "${SECRET_KEY}" ] || { echo "Missing secret: AWS_SECRET_ACCESS_KEY" >&2; exit 1; }
-        env:
-          ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          SECRET_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials (static keys)
+      - name: Check required secrets
+        run: |
+          echo "Checking secrets..."
+          if [ -z "${{ secrets.AWS_REGION }}" ]; then echo "Missing AWS_REGION"; exit 1; fi
+          if [ -z "${{ secrets.AWS_ECR_REPOSITORY }}" ]; then echo "Missing AWS_ECR_REPOSITORY"; exit 1; fi
+          if [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then echo "Missing AWS_ACCESS_KEY_ID"; exit 1; fi
+          if [ -z "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then echo "Missing AWS_SECRET_ACCESS_KEY"; exit 1; fi
+          echo "All secrets present"
+
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Verify Dockerfile exists (and show tree)
-        run: |
-          set -e
-          test -f ./docker/Dockerfile || { echo "Dockerfile not found at ./docker/Dockerfile"; exit 1; }
-          echo "::group::Top-level"; ls -la; echo "::endgroup::"
-          echo "::group::docker/"; ls -la docker || true; echo "::endgroup::"
-
-      - name: Log in to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Prepare image tags
-        id: prep-tags
-        run: |
-          set -euo pipefail
-          REGISTRY="${{ steps.login-ecr.outputs.registry }}"
-          TAGS="${REGISTRY}/${ECR_REPOSITORY}:${VERSION_TAG}"
-          if [ "${MARK_LATEST}" = "true" ]; then
-            TAGS="${TAGS},${REGISTRY}/${ECR_REPOSITORY}:latest"
-          fi
-          echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
-
-      - name: Build and push
-        id: build
+      - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./docker/Dockerfile
           push: true
-          tags: ${{ steps.prep-tags.outputs.tags }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          # Add this to see build progress
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ secrets.AWS_ECR_REPOSITORY }}:${{ inputs.version_tag }}
+            ${{ inputs.mark_latest && format('{0}/{1}:latest', steps.login-ecr.outputs.registry, secrets.AWS_ECR_REPOSITORY) || '' }}
           provenance: false
 
-      - name: Summary
-        if: always()
+      - name: Success
         run: |
-          {
-            echo "## Image pushed"
-            echo "- Region: \`${{ env.AWS_REGION }}\`"
-            echo "- Repository: \`${{ env.ECR_REPOSITORY }}\`"
-            echo "- Version: \`${{ env.VERSION_TAG }}\`"
-            echo "- Latest: \`${{ env.MARK_LATEST }}\`"
-            echo "- Digest: \`${{ steps.build.outputs.digest }}\`"
-          } >> "$GITHUB_STEP_SUMMARY"
+          echo "✅ Image pushed successfully"
+          echo "Region: ${{ secrets.AWS_REGION }}"
+          echo "Repository: ${{ secrets.AWS_ECR_REPOSITORY }}"
+          echo "Tag: ${{ inputs.version_tag }}"
