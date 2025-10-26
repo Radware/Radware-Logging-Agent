@@ -15,22 +15,21 @@ on:
 
 jobs:
   build-and-push:
-    name: Build and push Docker image to Amazon ECR
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    
+    env:
+      ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+      ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY }}
 
     steps:
-      - name: Checkout
+      - name: Check out code
         uses: actions/checkout@v4
 
-      - name: Check required secrets
-        run: |
-          echo "Checking secrets..."
-          if [ -z "${{ secrets.AWS_REGION }}" ]; then echo "Missing AWS_REGION"; exit 1; fi
-          if [ -z "${{ secrets.AWS_ECR_REPOSITORY }}" ]; then echo "Missing AWS_ECR_REPOSITORY"; exit 1; fi
-          if [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then echo "Missing AWS_ACCESS_KEY_ID"; exit 1; fi
-          if [ -z "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then echo "Missing AWS_SECRET_ACCESS_KEY"; exit 1; fi
-          echo "All secrets present"
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -39,27 +38,35 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Login to Amazon ECR
+      - name: Log in to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Prepare Docker tags based on input
+        id: prep_tags
+        run: |
+          # Always include the version-specific tag from the input
+          TAGS="${{ steps.login-ecr.outputs.registry }}/${ECR_REPOSITORY}:${{ github.event.inputs.version_tag }}"
+          
+          # Conditionally add the 'latest' tag if the user selected 'true'
+          if [[ "${{ github.event.inputs.mark_latest }}" == 'true' ]]; then
+            echo "✅ User chose to tag as 'latest'."
+            TAGS="${TAGS}
+          ${{ steps.login-ecr.outputs.registry }}/${ECR_REPOSITORY}:latest"
+          else
+            echo "☑️ User chose not to tag as 'latest'."
+          fi
+          
+          echo "tags<<EOF" >> $GITHUB_OUTPUT
+          echo "${TAGS}" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Build and push Docker image
+      - name: Build & push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./docker/Dockerfile
           push: true
-          tags: |
-            ${{ steps.login-ecr.outputs.registry }}/${{ secrets.AWS_ECR_REPOSITORY }}:${{ inputs.version_tag }}
-            ${{ inputs.mark_latest && format('{0}/{1}:latest', steps.login-ecr.outputs.registry, secrets.AWS_ECR_REPOSITORY) || '' }}
-          provenance: false
-
-      - name: Success
-        run: |
-          echo "✅ Image pushed successfully"
-          echo "Region: ${{ secrets.AWS_REGION }}"
-          echo "Repository: ${{ secrets.AWS_ECR_REPOSITORY }}"
-          echo "Tag: ${{ inputs.version_tag }}"
+          tags: ${{ steps.prep_tags.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
