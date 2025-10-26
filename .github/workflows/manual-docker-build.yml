@@ -12,14 +12,13 @@ on:
         default: false
         type: boolean
 
-# Avoid overlapping manual pushes for the same ref/tag
 concurrency:
   group: ecr-${{ github.workflow }}-${{ github.ref_name }}-${{ github.event.inputs.version_tag }}
   cancel-in-progress: false
 
 jobs:
   build-and-push:
-    if: ${{ github.event_name == 'workflow_dispatch' }}
+    # REMOVE the if condition - it's not needed since workflow_dispatch is the only trigger
     name: Build and push Docker image to Amazon ECR
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -27,15 +26,11 @@ jobs:
       contents: read
 
     env:
-      # Set these repo secrets:
-      #   AWS_REGION            -> e.g. us-east-1
-      #   AWS_ECR_REPOSITORY    -> e.g. radware/rla   (repo path only)
-      #   AWS_ACCESS_KEY_ID
-      #   AWS_SECRET_ACCESS_KEY
       AWS_REGION: ${{ secrets.AWS_REGION }}
       ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY }}
       VERSION_TAG: ${{ github.event.inputs.version_tag }}
-      MARK_LATEST: ${{ github.event.inputs.mark_latest }}
+      # Fix boolean handling
+      MARK_LATEST: ${{ github.event.inputs.mark_latest == true && 'true' || 'false' }}
 
     steps:
       - name: Check required secrets are present
@@ -78,15 +73,11 @@ jobs:
         run: |
           set -euo pipefail
           REGISTRY="${{ steps.login-ecr.outputs.registry }}"
-          TAGS_LIST=("${REGISTRY}/${ECR_REPOSITORY}:${VERSION_TAG}")
+          TAGS="${REGISTRY}/${ECR_REPOSITORY}:${VERSION_TAG}"
           if [ "${MARK_LATEST}" = "true" ]; then
-            TAGS_LIST+=("${REGISTRY}/${ECR_REPOSITORY}:latest")
+            TAGS="${TAGS},${REGISTRY}/${ECR_REPOSITORY}:latest"
           fi
-          {
-            echo "tags<<'TAGS'"
-            for t in "${TAGS_LIST[@]}"; do echo "$t"; done
-            echo "TAGS"
-          } >> "$GITHUB_OUTPUT"
+          echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
 
       - name: Build and push
         id: build
@@ -98,6 +89,8 @@ jobs:
           tags: ${{ steps.prep-tags.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # Add this to see build progress
+          provenance: false
 
       - name: Summary
         if: always()
@@ -106,7 +99,7 @@ jobs:
             echo "## Image pushed"
             echo "- Region: \`${{ env.AWS_REGION }}\`"
             echo "- Repository: \`${{ env.ECR_REPOSITORY }}\`"
-            echo "- Tags:"
-            while IFS= read -r line; do echo "  - \`$line\`"; done <<< "${{ steps.prep-tags.outputs.tags }}"
+            echo "- Version: \`${{ env.VERSION_TAG }}\`"
+            echo "- Latest: \`${{ env.MARK_LATEST }}\`"
             echo "- Digest: \`${{ steps.build.outputs.digest }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
