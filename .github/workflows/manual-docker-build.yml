@@ -4,39 +4,68 @@ on:
   workflow_dispatch:
     inputs:
       version_tag:
-        description: 'Docker image version tag to publish'
+        description: "Docker image version tag to publish (e.g. 1.8.3)"
         required: true
       mark_latest:
-        description: 'Also tag and push the image as latest'
+        description: "Also tag and push the image as latest"
         required: false
         default: false
         type: boolean
       source_branch:
-        description: 'Git branch to build from'
+        description: "Git branch to build from"
         required: true
-        default: 'main'
+        default: "main"
+
+# Prevent overlapping manual runs for the same branch/version
+concurrency:
+  group: ecr-${{ github.workflow }}-${{ github.event.inputs.source_branch }}-${{ github.event.inputs.version_tag }}
+  cancel-in-progress: false
 
 jobs:
   build-and-push:
     name: Build and push Docker image to Amazon ECR
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     permissions:
       contents: read
-      id-token: write
+      id-token: write # required for OIDC (aws-actions/configure-aws-credentials)
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY }}
+      VERSION_TAG: ${{ github.event.inputs.version_tag }}
+      MARK_LATEST: ${{ github.event.inputs.mark_latest }}
+
     steps:
+      - name: Validate required inputs/secrets
+        run: |
+          set -euo pipefail
+          if [ -z "${AWS_REGION:-}" ]; then
+            echo "Missing secret: AWS_REGION" >&2; exit 1
+          fi
+          if [ -z "${ECR_REPOSITORY:-}" ]; then
+            echo "Missing secret: AWS_ECR_REPOSITORY" >&2; exit 1
+          fi
+          # Must have either a role to assume OR static access keys
+          if [ -z "${{ secrets.AWS_ROLE_TO_ASSUME }}" ]; then
+            if [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ] || [ -z "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then
+              echo "Provide AWS_ROLE_TO_ASSUME or (AWS_ACCESS_KEY_ID & AWS_SECRET_ACCESS_KEY)" >&2; exit 1
+            fi
+          fi
+
       - name: Checkout source
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.source_branch }}
 
-      - name: Configure AWS credentials (assume role)
+      # Prefer OIDC if a role is provided
+      - name: Configure AWS credentials (assume role via OIDC)
         if: ${{ secrets.AWS_ROLE_TO_ASSUME != '' }}
-
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ env.AWS_REGION }}
 
+      # Fallback to static access keys
       - name: Configure AWS credentials (access keys)
         if: ${{ secrets.AWS_ROLE_TO_ASSUME == '' }}
         uses: aws-actions/configure-aws-credentials@v4
@@ -44,7 +73,10 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Log in to Amazon ECR
         id: login-ecr
@@ -52,34 +84,44 @@ jobs:
 
       - name: Prepare image tags
         id: prep-tags
-        env:
-          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY }}
-          VERSION_TAG: ${{ github.event.inputs.version_tag }}
-          MARK_LATEST: ${{ github.event.inputs.mark_latest }}
         run: |
-          if [ -z "${REPOSITORY}" ]; then
-            echo "AWS_ECR_REPOSITORY secret must be set." >&2
-            exit 1
-          fi
-
-          TAGS_LIST=("${REGISTRY}/${REPOSITORY}:${VERSION_TAG}")
-
-          if [ "${MARK_LATEST}" = 'true' ]; then
-            TAGS_LIST+=("${REGISTRY}/${REPOSITORY}:latest")
+          set -euo pipefail
+          REGISTRY="${{ steps.login-ecr.outputs.registry }}"
+          TAGS_LIST=("${REGISTRY}/${ECR_REPOSITORY}:${VERSION_TAG}")
+          if [ "${MARK_LATEST}" = "true" ]; then
+            TAGS_LIST+=("${REGISTRY}/${ECR_REPOSITORY}:latest")
           fi
 
           {
-            echo "tags<<'TAGS'";
+            echo "tags<<'TAGS'"
             for tag in "${TAGS_LIST[@]}"; do
-              echo "${tag}";
-            done;
-            echo 'TAGS';
+              echo "$tag"
+            done
+            echo "TAGS"
           } >> "$GITHUB_OUTPUT"
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v4
+        id: build
+        uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           tags: ${{ steps.prep-tags.outputs.tags }}
+          # Optional but recommended for speed on repeat builds:
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Image pushed"
+            echo ""
+            echo "- **Repository:** \`${{ env.ECR_REPOSITORY }}\`"
+            echo "- **Region:** \`${{ env.AWS_REGION }}\`"
+            echo "- **Tags:**"
+            while IFS= read -r line; do
+              echo "  - \`$line\`"
+            done <<< "${{ steps.prep-tags.outputs.tags }}"
+            echo "- **Digest:** \`${{ steps.build.outputs.digest }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
