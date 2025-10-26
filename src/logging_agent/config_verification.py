@@ -126,8 +126,7 @@ def test_http_connection(url, headers=None, auth=None, compatibility=None):
         if compatibility == 'splunk hec':
             # For Splunk HEC compatibility, perform a POST request with an empty body
             response = requests.post(url, headers=headers, auth=auth, data='', timeout=5)
-            # Valid response is a 400 with a specific error message
-            return response.status_code == 400 and "No data" in response.json().get("text", "")
+            return _is_valid_splunk_hec_response(response)
         else:
             # Default behavior with a GET request
             response = requests.get(url, headers=headers, auth=auth, timeout=5)
@@ -180,8 +179,7 @@ def test_https_connection(url, headers=None, auth=None, verify=True, cert=None, 
         if compatibility == 'splunk hec':
             # For Splunk HEC compatibility, perform a POST request with an empty body
             response = session.post(url, data='', timeout=5)
-            # Valid response is a 400 with a specific error message
-            return response.status_code == 400 and "No data" in response.json().get("text", "")
+            return _is_valid_splunk_hec_response(response)
         else:
             # Default behavior with a GET request
             response = session.get(url, timeout=5)
@@ -189,6 +187,29 @@ def test_https_connection(url, headers=None, auth=None, verify=True, cert=None, 
     except requests.RequestException as e:
         logger.error(f"HTTPS connectivity test failed: {e}")
         return False
+
+
+def _is_valid_splunk_hec_response(response):
+    """Determine if the response represents a successful Splunk/Cribl HEC health check."""
+
+    try:
+        payload = response.json()
+    except ValueError:
+        return response.ok and bool(response.text and response.text.strip())
+
+    text = str(payload.get("text", ""))
+    code = payload.get("code")
+
+    if response.status_code == 400 and "no data" in text.lower():
+        return True
+
+    if response.status_code == 200:
+        if code is not None and str(code) == "0":
+            return True
+        if "success" in text.lower():
+            return True
+
+    return False
 
 def verify_output_connectivity(config):
     """
