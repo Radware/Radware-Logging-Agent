@@ -31,6 +31,7 @@ jobs:
 
       - name: Configure AWS credentials (assume role)
         if: ${{ secrets.AWS_ROLE_TO_ASSUME != '' }}
+
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
