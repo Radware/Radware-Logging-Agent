@@ -134,7 +134,7 @@ Settings for secure TCP communication using TLS. These settings are crucial for 
 Customize settings for log transmission over HTTP or HTTPS. When using HTTPS, the options available in the TLS Configuration can also be applied to ensure secure communication. This includes specifying certificates for SSL verification and encryption.
 
 - **authentication**: Specify authentication method for secure endpoint access. Supported methods include `none` (no authentication), `basic` (username and password), and `bearer` (bearer token).
-- **custom_headers**: Define additional HTTP headers to be included in each request. Useful for specifying content types, API keys, or other custom header values required by the receiving server.
+- **custom_headers**: Define additional HTTP headers to be included in each request. Useful for specifying content types, API keys, or other custom header values required by the receiving server. When deploying via the Docker image or AWS Fargate task definition, headers can be provided entirely through environment variables (for example: `HTTPS_AUTHORIZATION_HEADER`, `HTTPS_HEADER_X_CUSTOM_HEADER=MyValue`, or `HTTPS_CUSTOM_HEADERS="Header-One=Value;Header-Two=Other"`). The container entrypoint automatically injects these values into the generated `rla.yaml`.
 
 ### HTTPS Specific Options
 
