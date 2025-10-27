@@ -69,6 +69,71 @@ else
         fi
     done
 
+    echo "Applying dynamic custom header configuration from environment variables (if provided)..."
+    python <<'PY'
+import os
+import re
+from pathlib import Path
+
+import yaml
+
+
+CONFIG_PATH = Path("rla.yaml")
+
+
+def normalise_header_name(raw_name: str) -> str:
+    return raw_name.replace("_", "-")
+
+
+def extract_headers(protocol: str) -> dict[str, str]:
+    prefix = protocol.upper()
+    headers: dict[str, str] = {}
+
+    custom_headers_env = os.getenv(f"{prefix}_CUSTOM_HEADERS")
+    if custom_headers_env:
+        for pair in custom_headers_env.split(";"):
+            if not pair.strip() or "=" not in pair:
+                continue
+            name, value = pair.split("=", 1)
+            name = name.strip()
+            value = value.strip()
+            if name:
+                headers[name] = value
+
+    pattern_prefix = re.compile(rf"^{prefix}_(?:CUSTOM_HEADER_|HEADER_)(.+)$")
+    pattern_suffix = re.compile(rf"^{prefix}_(.+)_HEADER$")
+
+    for env_name, env_value in os.environ.items():
+        if not env_value:
+            continue
+        match = pattern_prefix.match(env_name)
+        if match is None:
+            match = pattern_suffix.match(env_name)
+        if match is None:
+            continue
+        header_key = normalise_header_name(match.group(1))
+        headers[header_key] = env_value
+
+    return headers
+
+
+if CONFIG_PATH.exists():
+    with CONFIG_PATH.open("r", encoding="utf-8") as fh:
+        config = yaml.safe_load(fh) or {}
+else:
+    config = {}
+
+for protocol in ("http", "https"):
+    headers = extract_headers(protocol)
+    if not headers:
+        continue
+    section = config.setdefault(protocol, {})
+    section["custom_headers"] = headers
+
+with CONFIG_PATH.open("w", encoding="utf-8") as fh:
+    yaml.safe_dump(config, fh, sort_keys=False)
+PY
+
     # ---- End of Environment Variable Section ----
 fi
 
