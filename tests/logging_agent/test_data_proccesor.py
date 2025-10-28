@@ -131,3 +131,65 @@ def test_gather_data_fields_non_cloud_product(config_fixture):
     processor = DataProcessor(config_fixture)
     result = processor.gather_data_fields({}, {}, 'sqs', 'Access', 'other_product')
     assert result == {}
+
+
+def test_process_data_skips_unknown_type_when_flag_disabled(mock_dependencies, config_fixture):
+    config = copy.deepcopy(config_fixture)
+    config['logs']['unknown'] = False
+    processor = DataProcessor(config)
+
+    input_fields = {
+        'bucket': 'mock-bucket',
+        'key': 'mock-key',
+        'expected_size': 512
+    }
+    metadata = {
+        'file_path': '/tmp/mock-file',
+        'relative_key': 'relative/mock-key',
+        'cleanup': True
+    }
+    mock_dependencies['data_loader'].load_data.return_value = {
+        'data': [{'sample': 'data'}],
+        'metadata': metadata
+    }
+
+    with patch.object(DataProcessor, 'identify_product_log_type', return_value='NewType') as identify_mock, \
+            patch.object(DataProcessor, 'gather_data_fields') as gather_mock:
+        success = processor.process_data(input_fields)
+
+    assert success
+    identify_mock.assert_called_once()
+    gather_mock.assert_not_called()
+    mock_dependencies['transformer'].transform_content.assert_not_called()
+    mock_dependencies['sender_send_data'].assert_not_called()
+
+
+def test_process_data_processes_unknown_type_when_flag_enabled(mock_dependencies, config_fixture):
+    config = copy.deepcopy(config_fixture)
+    config['logs']['unknown'] = True
+    processor = DataProcessor(config)
+
+    input_fields = {
+        'bucket': 'mock-bucket',
+        'key': 'mock-key',
+        'expected_size': 512
+    }
+    metadata = {
+        'file_path': '/tmp/mock-file',
+        'relative_key': 'relative/mock-key',
+        'cleanup': True
+    }
+    mock_dependencies['data_loader'].load_data.return_value = {
+        'data': [{'sample': 'data'}],
+        'metadata': metadata
+    }
+
+    with patch.object(DataProcessor, 'identify_product_log_type', return_value='NewType') as identify_mock, \
+            patch.object(DataProcessor, 'gather_data_fields', return_value={'key': 'relative/mock-key'}) as gather_mock:
+        success = processor.process_data(input_fields)
+
+    assert success
+    identify_mock.assert_called_once()
+    gather_mock.assert_called_once()
+    mock_dependencies['transformer'].transform_content.assert_called_once()
+    mock_dependencies['sender_send_data'].assert_called_once()

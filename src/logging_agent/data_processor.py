@@ -51,14 +51,23 @@ class DataProcessor:
             self.logger.error(f"Failed to load data for input type: {input_type}")
             return False
 
-        log_type = self.identify_product_log_type(input_fields, metadata, input_type, product)
-        # Check if the log type is supported for the product
-        if log_type not in supported_features[product]["supported_log_types"]:
-            self.logger.info(f"Skipping unsupported log type {log_type} for product {product}.")
-            return True  # Successfully handled by skipping
+        log_type = self.identify_product_log_type(input_fields, metadata, input_type, product) or "Unknown"
+        supported_log_types = supported_features[product]["supported_log_types"]
+        logs_config = self.config.get('logs', {}) or {}
+        log_configuration = supported_features.get(product, {}).get('log_configuration', {})
+        unknown_option = log_configuration.get('unknown_option')
+        allow_unknown_logs = logs_config.get(unknown_option, False) if unknown_option else False
 
-        # Check if the log type should be processed based on configuration
-        if not self.config.get('logs', {}).get(log_type, False):
+        # Check if the log type is supported for the product
+        if log_type not in supported_log_types:
+            if not allow_unknown_logs:
+                self.logger.info(f"Skipping unsupported log type {log_type} for product {product}.")
+                return True  # Successfully handled by skipping
+            self.logger.info(
+                f"Processing unsupported log type {log_type} for product {product} because unknown logs are enabled."
+            )
+        elif not logs_config.get(log_type, False):
+            # Check if the log type should be processed based on configuration
             self.logger.info(f"Skipping log type {log_type} as per configuration.")
             return True  # Successfully handled by skipping
 
