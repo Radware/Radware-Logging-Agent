@@ -84,41 +84,34 @@ def construct_cef_syslog_header(format_options, log):
 
 
 
-# escape_pattern = re.compile(r'([\\=\r\n|,;"\'])')
-#
-# def sanitize_cef_value(value):
-#     """
-#     Sanitize values for CEF format by escaping reserved characters.
-#
-#     Args:
-#         value (any): The value to be sanitized for CEF format.
-#
-#     Returns:
-#         str: A sanitized string safe for CEF formatting.
-#     """
-#     try:
-#         if not isinstance(value, str):
-#             value = str(value)  # Convert non-string values to string
-#
-#         # Mapping of characters to their escaped versions
-#         escape_chars = {
-#             '\\': '\\\\',
-#             '\r': '\\r',
-#             '\n': '\\n',
-#             '=': '\\=',
-#             '|': '\\|',
-#             ',': '\\,',
-#             ';': '\\;',
-#             '"': '\\"'
-#         }
-#
-#         for char, escaped_char in escape_chars.items():
-#             value = value.replace(char, escaped_char)
-#
-#         return value
-#     except Exception as e:
-#         logger.error(f"Error sanitizing value for CEF format: {e}")
-#         return str(value)
+escape_pattern = re.compile(r'([\\\r\n=|,;"])')
+
+
+def sanitize_cef_value(value):
+    """Sanitize values for CEF format by escaping reserved characters."""
+
+    try:
+        if not isinstance(value, str):
+            value = str(value)
+
+        def escape_match(match):
+            char = match.group(0)
+            escape_map = {
+                '\\': '\\\\',
+                '\r': '\\r',
+                '\n': '\\n',
+                '=': '\\=',
+                '|': '\\|',
+                ',': '\\,',
+                ';': '\\;',
+                '"': '\\"',
+            }
+            return escape_map.get(char, char)
+
+        return escape_pattern.sub(escape_match, value)
+    except Exception as e:
+        logger.error(f"Error sanitizing value for CEF format: {e}")
+        return str(value)
 
 def sanitize_header_value(value):
     """
