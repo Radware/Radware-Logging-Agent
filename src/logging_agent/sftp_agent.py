@@ -18,20 +18,37 @@ if TYPE_CHECKING:  # pragma: no cover - used for type checking only
 
 if asyncssh_sftp is not None:
 
-    class _TrackedFile(asyncssh_sftp.LocalFile):
-        """Wrap AsyncSSH LocalFile to trigger callbacks when uploads finish."""
+    class _TrackedFile:
+        """Wrap low-level file handles to trigger callbacks when uploads finish."""
 
         def __init__(self, agent: "SFTPAgent", relative_path: str, file_obj):
-            super().__init__(file_obj)
             self._agent = agent
             self._relative_path = relative_path
+            self._file = file_obj
 
-        async def close(self) -> None:  # pragma: no cover - exercised via agent logic
-            await super().close()
+        def read(self, size: int = -1) -> bytes:  # pragma: no cover - passthrough
+            return self._file.read(size)
+
+        def write(self, data) -> int:
+            return self._file.write(data)
+
+        def seek(self, offset: int, whence: int = os.SEEK_SET):  # pragma: no cover - passthrough
+            return self._file.seek(offset, whence)
+
+        def request_ranges(self, offset: int, length: int):  # pragma: no cover - passthrough
+            if hasattr(self._file, "request_ranges"):
+                return self._file.request_ranges(offset, length)
+            return []
+
+        def close(self) -> None:  # pragma: no cover - exercised via agent logic
+            self._file.close()
             try:
                 self._agent._handle_upload_complete(self._relative_path)
             except Exception:
                 self._agent.logger.exception("Failed to enqueue uploaded file %s", self._relative_path)
+
+        def __getattr__(self, item):  # pragma: no cover - attribute passthrough
+            return getattr(self._file, item)
 
 else:  # pragma: no cover - ensures module imports even without asyncssh
 
