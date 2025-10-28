@@ -15,6 +15,7 @@ RLA is a log processing tool designed to streamline the integration of Radware p
 - Plumbed payload sampling through the data processor so every agent type benefits from the enhanced classifier without manual wiring.
 - Published curated configuration snippets (see `config/examples/`) for common topologies, including a file agent streaming to Splunk HEC compatibility mode, SQS-to-CEF forwarding, and embedded SFTP drop-zones.
 - Expanded operator documentation with troubleshooting guidance for the new detection flow and direct links to the scenario-driven configuration files.
+- Reworked the installer script to add non-interactive and custom directory support, broader distro detection, and one-command provisioning of the service user, virtualenv, and systemd unit.
 
 ### Version 1.4.0 - 18/11/2024
 
