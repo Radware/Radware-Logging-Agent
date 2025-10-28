@@ -10,8 +10,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, Optional
 
-import asyncssh
 import pytest
+
+asyncssh = pytest.importorskip("asyncssh")
 
 from logging_agent.sftp_agent import SFTPAgent
 
