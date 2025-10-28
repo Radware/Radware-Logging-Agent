@@ -1,56 +1,133 @@
+import copy
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import patch, MagicMock
+
+from logging_agent.cloud_waap import CloudWAAPProcessor
 from logging_agent.data_processor import DataProcessor
-from logging_agent.data_loader import DataLoader
-from logging_agent.transformer import Transformer
-from logging_agent.sender import Sender
-from logging_agent.downloader import S3Downloader  # Ensure this is the correct path
 
 
-@pytest.mark.parametrize("transformed_data", [
-    # Example list of dictionaries based on your provided JSON transformed_data
-    [{"time": "01 31 2024 13:14:51", "source_ip": "220.244.85.52", "source_port": 27855,
-      "destination_ip": "10.202.0.159", "destination_port": 443,
-      "protocol": "https", "http_method": "GET",
-      "host": "autodemo.radware.net", "request": "https://autodemo.radware.net/product/view?id=129",
-      "directory": "/product",
-      "user_agent": "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.82 Safari/537.36 Edg/89.0.774.50",
-      "accept_language": "-",
-      "x-forwarded-for": "220.244.85.52",
-      "cookie": "AWSALB=L9ebhHi5PuXyus0wbQ1FOaExKgaDq; AWSALBCORS=L9ebhHi5LDuhfsHzIFqj9zHGEQ1FOaExKgaDq; PHPSESSID=si2233mfq8a1gvl5adl06glvm1; visited_products=%2C4223%2C50%2C127%2C67%%2C70%2C102C",
-      "request_time": "0.043", "response_code": 200, "http_bytes_in": 1445, "http_bytes_out": 10823,
-      "country_code": "AU", "action": "Allowed", "application_id": "805c88ac-aaf9-471a-9030-391c0393990d",
-      "application_name": "New CWAF Automated Demo", "tenant_name": "DEMO", "log_type": "Access",
-      "http_version": "HTTP/1.1", "uri": "/product/view"},
-     {"time": "01 31 2024 13:14:51", "source_ip": "95.21.225.67", "source_port": 24098,
-      "destination_ip": "10.202.0.159", "destination_port": 443, "protocol": "https",
-      "http_method": "GET", "host": "autodemo.radware.net", "request": "https://autodemo.radware.net/account",
-      "directory": "/", "user_agent": "Mozilla/5.0 (Windows NT 6.1; Trident/7.0; rv:11.0) like Gecko",
-      "accept_language": "en-US,en;q=0.9", "x-forwarded-for": "95.21.225.67",
-      "cookie": "AWSALB=L9ebhHi5PuXyus0wbQ1FOaExKgaDq; AWSALBCORS=L9ebhHi5LDuhfsHzIFqj9zHGEQ1FOaExKgaDq; PHPSESSID=si2233mfq8a1gvl5adl06glvm1; visited_products=%2C4223%2C50%2C127%2C67%%2C70%2C102C",
-      "request_time": "0.047", "response_code": 200, "http_bytes_in": 1723, "http_bytes_out": 7440,
-      "country_code": "ES", "action": "Allowed", "application_id": "805c88ac-aaf9-471a-9030-391c0393990d",
-      "application_name": "New CWAF Automated Demo", "tenant_name": "DEMO", "log_type": "Access",
-      "http_version": "HTTP/1.1", "uri": "/account"}]
-])
-
-
-
-def test_data_processor_process_data_success(data_processor, mock_dependencies, config_fixture,transformed_data):
+def test_data_processor_process_data_success(data_processor, mock_dependencies, config_fixture):
     input_fields = {
         'bucket': 'mock-bucket',
         'key': 'mock-key',
         'expected_size': 1234
     }
 
-    # Mock identify_product_log_type within DataProcessor to return a supported log type
-    with patch.object(DataProcessor, 'identify_product_log_type', return_value='Access'):
+    metadata = {
+        'file_path': '/tmp/mock-file',
+        'relative_key': 'relative/mock-key',
+        'cleanup': True
+    }
+    mock_dependencies['data_loader'].load_data.return_value = {
+        'data': [{'sample': 'data'}],
+        'metadata': metadata
+    }
+
+    with patch.object(DataProcessor, 'identify_product_log_type', return_value='Access') as identify_mock, \
+            patch.object(DataProcessor, 'gather_data_fields', return_value={'key': 'relative/mock-key'}) as gather_mock:
         success = data_processor.process_data(input_fields)
 
     assert success
     mock_dependencies['data_loader'].load_data.assert_called_once_with("sqs", input_fields)
-    mock_dependencies['transformer'].transform_content.assert_called_once()  # Verifies transformation was invoked
+    identify_args = identify_mock.call_args[0]
+    assert identify_args[1] == metadata
+    gather_args = gather_mock.call_args[0]
+    assert gather_args[1] == metadata
+    mock_dependencies['transformer'].transform_content.assert_called_once()
     mock_dependencies['sender_send_data'].assert_called_once()
+    mock_dependencies['utility_cleanup'].assert_called_once_with('/tmp/mock-file')
 
 
+def test_data_processor_process_data_skips_cleanup_without_flag(mock_dependencies, config_fixture):
+    config = copy.deepcopy(config_fixture)
+    config['type'] = 'file'
+    processor = DataProcessor(config)
 
+    metadata = {
+        'file_path': '/tmp/mock-file',
+        'relative_key': 'relative/mock-key',
+        'cleanup': False
+    }
+    mock_dependencies['data_loader'].load_data.return_value = {
+        'data': [{'sample': 'data'}],
+        'metadata': metadata
+    }
+
+    with patch.object(DataProcessor, 'identify_product_log_type', return_value='Access'), \
+            patch.object(DataProcessor, 'gather_data_fields', return_value={'key': 'relative/mock-key'}):
+        success = processor.process_data({'file_path': '/tmp/mock-file'})
+
+    assert success
+    mock_dependencies['utility_cleanup'].assert_not_called()
+
+
+def test_data_processor_process_data_skips_cleanup_on_failure(mock_dependencies, config_fixture):
+    config = copy.deepcopy(config_fixture)
+    processor = DataProcessor(config)
+
+    metadata = {
+        'file_path': '/tmp/mock-file',
+        'relative_key': 'relative/mock-key',
+        'cleanup': True
+    }
+    mock_dependencies['data_loader'].load_data.return_value = {
+        'data': [{'sample': 'data'}],
+        'metadata': metadata
+    }
+    mock_dependencies['sender_send_data'].return_value = False
+
+    with patch.object(DataProcessor, 'identify_product_log_type', return_value='Access'), \
+            patch.object(DataProcessor, 'gather_data_fields', return_value={'key': 'relative/mock-key'}):
+        success = processor.process_data({'key': 'mock-key'})
+
+    assert not success
+    mock_dependencies['utility_cleanup'].assert_not_called()
+
+
+@pytest.mark.parametrize('input_type', ['sqs', 'file', 'sftp'])
+def test_identify_product_log_type_uses_relative_key(config_fixture, input_type):
+    processor = DataProcessor(config_fixture)
+    metadata = {'relative_key': 'relative/path'}
+    with patch.object(CloudWAAPProcessor, 'identify_log_type', return_value='Access') as identify_mock:
+        log_type = processor.identify_product_log_type({'key': 'fallback'}, metadata, input_type, 'cloud_waap')
+
+    assert log_type == 'Access'
+    identify_mock.assert_called_once_with('relative/path')
+
+
+def test_identify_product_log_type_falls_back_to_input_fields(config_fixture):
+    processor = DataProcessor(config_fixture)
+    metadata = {}
+    with patch.object(CloudWAAPProcessor, 'identify_log_type', return_value='Access') as identify_mock:
+        log_type = processor.identify_product_log_type({'key': 'fallback'}, metadata, 'sqs', 'cloud_waap')
+
+    assert log_type == 'Access'
+    identify_mock.assert_called_once_with('fallback')
+
+
+def test_gather_data_fields_uses_relative_key(config_fixture):
+    processor = DataProcessor(config_fixture)
+    metadata = {'relative_key': 'relative/path'}
+    with patch.object(CloudWAAPProcessor, 'extract_metadata', return_value={'meta': 'data'}) as extract_mock:
+        data_fields = processor.gather_data_fields({}, metadata, 'file', 'Access', 'cloud_waap')
+
+    assert data_fields['key'] == 'relative/path'
+    assert data_fields['metadata'] == {'meta': 'data'}
+    extract_mock.assert_called_once_with('relative/path', 'cloud_waap', 'Access')
+
+
+def test_gather_data_fields_falls_back_to_input_fields(config_fixture):
+    processor = DataProcessor(config_fixture)
+    metadata = {}
+    with patch.object(CloudWAAPProcessor, 'extract_metadata', return_value={'meta': 'data'}) as extract_mock:
+        data_fields = processor.gather_data_fields({'key': 'fallback'}, metadata, 'sqs', 'Access', 'cloud_waap')
+
+    assert data_fields['key'] == 'fallback'
+    extract_mock.assert_called_once_with('fallback', 'cloud_waap', 'Access')
+
+
+def test_gather_data_fields_non_cloud_product(config_fixture):
+    processor = DataProcessor(config_fixture)
+    result = processor.gather_data_fields({}, {}, 'sqs', 'Access', 'other_product')
+    assert result == {}

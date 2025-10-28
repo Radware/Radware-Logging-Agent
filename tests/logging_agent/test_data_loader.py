@@ -1,11 +1,11 @@
-import pytest
-import json
-from logging_agent.data_loader import DataLoader
-from io import StringIO
-from logging_agent.downloader import S3Downloader
+import os
 import json
 import gzip
-from unittest.mock import MagicMock
+
+import pytest
+
+from logging_agent.data_loader import DataLoader
+
 
 def test_load_data_unsupported_type(config):
     dataloader = DataLoader(config)
@@ -13,85 +13,122 @@ def test_load_data_unsupported_type(config):
     assert result == {"data": None, "metadata": {}}
 
 
-def test_load_from_s3_file_exists(mocker, mock_s3_downloader, config, input_info):
-    # Mock data to be returned by the json file
+def test_load_from_s3_file_exists(monkeypatch, mock_s3_downloader, config, input_info):
     mock_data = {"test": "data"}
 
-    # Mock open to return a StringIO object, simulating reading from a file
-    mocker.patch("builtins.open", mocker.mock_open(read_data=json.dumps(mock_data)))
-
-    # Mock os.path.exists to simulate the file existence
-    mocker.patch('os.path.exists', return_value=True)
-
-    # Mock os.path.getsize to simulate the file size check
-    mocker.patch('os.path.getsize', return_value=100)
-
-    # Mock os.makedirs in case the directory creation is triggered
-    mocker.patch('os.makedirs', MagicMock())
+    monkeypatch.setattr('os.path.exists', lambda path: True)
+    monkeypatch.setattr('os.path.getsize', lambda path: 100)
+    monkeypatch.setattr('os.makedirs', lambda *args, **kwargs: None)
+    monkeypatch.setattr('glob.glob', lambda pattern: [])
+    monkeypatch.setattr(DataLoader, '_load_local_file', lambda self, path: mock_data)
 
     dataloader = DataLoader(config)
     result = dataloader.load_data("sqs", input_info)
 
-    # Validate the result
     assert result['data'] == mock_data
-    assert 'file_path' in result['metadata']
+    metadata = result['metadata']
+    assert metadata['key'] == input_info['key']
+    assert metadata['relative_key'] == input_info['key']
+    assert metadata['cleanup'] is True
 
-def test_load_from_s3_download_required(mocker, mock_s3_downloader, config, input_info):
-    # Simulate file not existing locally
-    mocker.patch('os.path.exists', side_effect=lambda path: False)
-    mocker.patch('os.makedirs', MagicMock())  # Mock directory creation
 
-    # Mock successful file download
+def test_load_from_s3_download_required(monkeypatch, mock_s3_downloader, config, input_info):
+    monkeypatch.setattr('os.path.exists', lambda path: False)
+    monkeypatch.setattr('os.makedirs', lambda *args, **kwargs: None)
+
     mock_s3_downloader.download.return_value = True
-
-    # Mock file reading with sample data
     sample_data = {"sample": "data"}
-    mocker.patch('builtins.open', mocker.mock_open(read_data=json.dumps(sample_data)))
+    monkeypatch.setattr(DataLoader, '_load_local_file', lambda self, path: sample_data)
 
     dataloader = DataLoader(config)
     result = dataloader.load_data("sqs", input_info)
 
     assert result['data'] == sample_data
-    assert 'file_path' in result['metadata']
+    metadata = result['metadata']
+    assert metadata['cleanup'] is True
+    assert metadata['key'] == input_info['key']
 
-def test_load_from_s3_download_failure(mocker, mock_s3_downloader, config, input_info):
-    # Simulate the file not existing locally
-    mocker.patch('os.path.exists', side_effect=lambda path: False)
-    mocker.patch('os.makedirs', MagicMock())  # Mock directory creation if it doesn't exist
 
-    # Simulate the download attempt failing
+def test_load_from_s3_download_failure(monkeypatch, mock_s3_downloader, config, input_info):
+    monkeypatch.setattr('os.path.exists', lambda path: False)
+    monkeypatch.setattr('os.makedirs', lambda *args, **kwargs: None)
+
     mock_s3_downloader.download.return_value = False
 
     dataloader = DataLoader(config)
     result = dataloader.load_data("sqs", input_info)
 
-    # Verify that the method returns None upon download failure
-    assert result is None
+    assert result['data'] is None
+    metadata = result['metadata']
+    assert metadata['cleanup'] is True
+    assert metadata['key'] == input_info['key']
 
-def test_load_from_s3_unsupported_format(mocker, mock_s3_downloader, config, input_info):
-    # Mock the existence of the file to trigger the unsupported format path
-    mocker.patch('os.path.exists', return_value=True)
 
-    # Mock os.path.getsize to return a specific size, ensuring the file is considered existing and complete
-    mocker.patch('os.path.getsize', return_value=1234)
+def test_load_from_s3_unsupported_format(monkeypatch, mock_s3_downloader, config, input_info):
+    monkeypatch.setattr('os.path.exists', lambda path: True)
+    monkeypatch.setattr('os.path.getsize', lambda path: 1234)
+    monkeypatch.setattr('glob.glob', lambda pattern: [])
+    monkeypatch.setattr('os.makedirs', lambda *args, **kwargs: None)
 
-    # Mock glob.glob to simulate no partial files exist, if your logic includes checking for these
-    mocker.patch('glob.glob', return_value=[])
-
-    # Mock os.makedirs in case your logic includes creating directories
-    mocker.patch('os.makedirs', MagicMock())
-
-    # Assume the download was successful, which should not be reached due to the unsupported format logic
     mock_s3_downloader.download.return_value = True
-
-    # Mock opening of files to prevent actual file reads, adjust according to your logic inside the try-except block
-    mocker.patch('builtins.open', mocker.mock_open())
+    monkeypatch.setattr(DataLoader, '_load_local_file', lambda self, path: None)
 
     dataloader = DataLoader(config)
-    input_info['key'] += ".unsupported"  # Ensure the key ends with an unsupported format
+    input_info['key'] += ".unsupported"
     result = dataloader.load_data("sqs", input_info)
 
-    # Validate that the result indicates an unsupported file format
-    assert result == {"data": None, "metadata": {}}, "Expected unsupported format to result in no data and metadata"
+    assert result['data'] is None
+    metadata = result['metadata']
+    assert metadata['key'] == input_info['key']
+    assert metadata['relative_key'] == input_info['key']
 
 
+def test_load_from_file_reads_local_json(tmp_path):
+    root_path = tmp_path / "root"
+    root_path.mkdir()
+    nested_dir = root_path / "logs"
+    nested_dir.mkdir()
+    file_path = nested_dir / "sample.json"
+    sample_data = {"message": "hello"}
+    file_path.write_text(json.dumps(sample_data))
+
+    config = {
+        'file_settings': {
+            'root_path': str(root_path)
+        }
+    }
+
+    dataloader = DataLoader(config)
+    result = dataloader.load_data("file", {'file_path': str(file_path)})
+
+    assert result['data'] == sample_data
+    metadata = result['metadata']
+    assert metadata['file_path'] == str(file_path)
+    assert metadata['relative_key'] == os.path.relpath(file_path, root_path)
+    assert metadata['cleanup'] is False
+
+
+def test_load_from_sftp_reads_gzip(tmp_path):
+    root_path = tmp_path / "drop"
+    root_path.mkdir()
+    partner_dir = root_path / "partner"
+    partner_dir.mkdir()
+    file_path = partner_dir / "log.json.gz"
+    payload = {"status": "ok"}
+    with gzip.open(file_path, 'wt') as f:
+        json.dump(payload, f)
+
+    config = {
+        'sftp_settings': {
+            'drop_directory': str(root_path)
+        }
+    }
+
+    dataloader = DataLoader(config)
+    result = dataloader.load_data("sftp", {'file_path': str(file_path)})
+
+    assert result['data'] == payload
+    metadata = result['metadata']
+    assert metadata['file_path'] == str(file_path)
+    assert metadata['relative_key'] == os.path.relpath(file_path, root_path)
+    assert metadata['cleanup'] is False
