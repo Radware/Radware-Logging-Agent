@@ -2,10 +2,10 @@ import boto3
 import threading
 import queue
 import json
+import time
 from .data_processor import DataProcessor
 from .logging_config import get_logger
 import urllib.parse
-import time
 
 class SQSAgent:
     def __init__(self, agent_config):
@@ -15,6 +15,7 @@ class SQSAgent:
         self.data_processor = DataProcessor(agent_config)
         self.processing_queue = queue.Queue()
         self.stop_event = threading.Event()
+        self.worker_threads: list[threading.Thread] = []
 
     def get_sqs_client(self, config):
         """
@@ -70,14 +71,21 @@ class SQSAgent:
             processing_messages (queue.Queue): Queue from which to retrieve and process messages.
             stop_agent (threading.Event): Event to signal when to stop the worker.
         """
-        while not stop_agent.is_set():
-            message_retrieved = False
+        while True:
             try:
                 message_details = processing_messages.get(timeout=3)
-                message_retrieved = True  # Flag set as a message has been successfully retrieved
-                self.logger.debug(f"Worker picked up message: {message_details}")
+            except queue.Empty:
+                if stop_agent.is_set():
+                    break
+                continue
 
-                # Handle SQS-specific processing
+            if message_details is None:
+                processing_messages.task_done()
+                break
+
+            self.logger.debug(f"Worker picked up message: {message_details}")
+
+            try:
                 process_success = self.data_processor.process_data(
                     input_fields={
                         'bucket': message_details['bucket'],
@@ -85,16 +93,16 @@ class SQSAgent:
                         'expected_size': message_details['size'],
                     }
                 )
+            except Exception as exc:  # pragma: no cover - defensive logging
+                self.logger.error("Failed to process SQS message %s: %s", message_details, exc)
+                process_success = False
 
-                # Handle message deletion based on processing success and config settings
-                if process_success or (not process_success and self.agent_config['sqs_settings']['delete_on_failure']):
-                    self.delete_message_from_sqs(message_details['receipt_handle'])
+            if process_success or (
+                not process_success and self.agent_config['sqs_settings']['delete_on_failure']
+            ):
+                self.delete_message_from_sqs(message_details['receipt_handle'])
 
-            except queue.Empty:
-                self.logger.debug("No messages in queue.")
-
-            if message_retrieved:
-                processing_messages.task_done()
+            processing_messages.task_done()
 
     def poll_sqs_messages(self, processing_messages, stop_agent):
         """
@@ -133,25 +141,25 @@ class SQSAgent:
     def start(self):
         """Starts the SQS agent processing."""
         self.logger.debug(f"Starting SQS Agent: {self.agent_config['name']}")
-        for _ in range(self.agent_config['num_worker_threads']):
-            t = threading.Thread(target=self.worker, args=(self.processing_queue, self.stop_event))
+        for index in range(self.agent_config['num_worker_threads']):
+            t = threading.Thread(
+                target=self.worker,
+                name=f"sqs-worker-{index}",
+                args=(self.processing_queue, self.stop_event),
+            )
             t.daemon = True
             t.start()
+            self.worker_threads.append(t)
 
         self.poll_sqs_messages(self.processing_queue, self.stop_event)
-
 
     def stop(self):
         self.logger.info(f"Stopping SQSAgent: {self.agent_config['name']}")
         self.stop_event.set()  # Signal the workers to stop
 
-        # Attempt a graceful shutdown with a timeout
-        shutdown_start_time = time.time()
-        shutdown_timeout = 60  # seconds
-        while time.time() - shutdown_start_time < shutdown_timeout:
-            if self.processing_queue.empty():
-                self.logger.info(f"SQSAgent {self.agent_config['name']} stopped successfully.")
-                return
-            time.sleep(0.5)  # Short sleep to allow threads to exit
-
-        self.logger.warning(f"SQSAgent {self.agent_config['name']} shutdown timed out. Some tasks may not have completed.")
+        # Allow workers to finish current tasks
+        self.processing_queue.join()
+        for thread in self.worker_threads:
+            thread.join(timeout=10)
+            if thread.is_alive():
+                self.logger.warning("SQS worker thread %s did not exit cleanly", thread.name)

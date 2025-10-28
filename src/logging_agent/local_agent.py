@@ -1,5 +1,8 @@
 import threading
 import time
+
+from .file_agent import FileAgent
+from .sftp_agent import SFTPAgent
 from .sqs_agent import SQSAgent  # Adjust import as needed
 from .config_reader import Config
 from .logging_config import get_logger
@@ -14,13 +17,24 @@ logger = get_logger('local_agent')
 def start_agents(agents_config):
     """Starts multiple agents based on their configurations."""
     agents = []
+    agent_factories = {
+        'sqs': SQSAgent,
+        'file': FileAgent,
+        'sftp': SFTPAgent,
+    }
+
     for agent_config in agents_config:
         agent_type = agent_config.get('type')
-        if agent_type == 'sqs':
-            agent = SQSAgent(agent_config)
-        else:
+        agent_cls = agent_factories.get(agent_type)
+        if not agent_cls:
             logger.error(f"Unsupported agent type: {agent_type}")
             continue  # Skip unsupported agent types
+
+        try:
+            agent = agent_cls(agent_config)
+        except ImportError as exc:
+            logger.error(f"Unable to start {agent_type} agent {agent_config.get('name')}: {exc}")
+            continue
 
         agent_thread = threading.Thread(target=agent.start)
         agent_thread.daemon = True
