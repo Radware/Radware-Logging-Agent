@@ -4,10 +4,21 @@ RLA is a log processing tool designed to streamline the integration of Radware p
 
 ## Current Version
 
-**Version 1.3.1** - Released on 7th November 2024
+**Version 1.4.0** - Released on 18th November 2024
 
 ## Release Notes
 
+
+### Version 1.4.0 - 18/11/2024
+
+- Hardened the **embedded SFTP server** with a non-blocking upload pipeline that hands completed
+  files to worker threads without pausing new client sessions. Added configuration knobs for
+  `polling_interval_seconds` and `completion_strategy` so operators can tune ingest latency and
+  archival semantics per drop-zone.
+- Increased **concurrency safeguards** across file-based agents by isolating in-flight uploads,
+  rejecting path traversal attempts, and ensuring that shutdown drains any pending work.
+- Introduced **automated concurrency tests** for the SFTP agent (`test_sftp_agent_concurrent_uploads`)
+  and shared queue handling to catch regressions before release.
 
 ### Version 1.3.1 - 07/11/2024
 
@@ -92,9 +103,22 @@ Define settings for each log collection agent.
 - **sftp_settings**:
   - **listen**: Host and port where the embedded SFTP service listens for client connections.
   - **host_keys**: List of private host key files (e.g., Ed25519 or RSA). All files must exist and remain readable by RLA.
+  - **polling_interval_seconds**: Interval used by the asynchronous background scanner that discovers completed uploads. Lower values reduce time-to-process at the cost of extra filesystem churn. `0` disables the sleep entirely and lets the scanner yield back to the event loop immediately between passes.
   - **drop_directory**: Root directory for uploaded files; ensure it is owned by the RLA service account and not world-writable.
+  - **completion_strategy**: Mirrors the file-agent behaviour. Use `delete` to remove successfully processed uploads or `archive` to move them into a configured `archive_directory` for retention.
   - **credential_policy**: Controls how clients authenticate. Use `static` for username/password credentials or `public_key` for SSH public key authentication. Each user entry includes a **username** and either a **password** (`static`) or **authorized_keys** list (`public_key`). Optional **home_directory** overrides must point to writable directories.
 - **logs**: Enable or disable specific log types for processing, such as `Access`, `WAF`, `Bot`, `DDoS`, `WebDDoS`, and `CSP`.
+
+### Embedded SFTP ingestion architecture
+
+The SFTP agent runs AsyncSSH in its own event loop and immediately wraps every writable handle in a lightweight tracker. When a client closes a file, the tracker schedules post-processing on a worker thread via the shared queue used by the file agent. This design keeps uploads non-blocking—new sessions continue unimpeded while previously completed files are normalised and shipped. The agent also scans the drop directory on a fixed cadence (`polling_interval_seconds`) so that files uploaded by out-of-band processes or left behind after restarts are still discovered.
+
+#### Scaling guidance
+
+- **Worker threads**: Increase `num_worker_threads` when the downstream processing or delivery becomes the bottleneck. The SFTP listener itself remains single-threaded but hands work to the queue immediately.
+- **Polling interval**: For latency-sensitive ingest, set `polling_interval_seconds: 0` or `1` to minimise dwell time. On busy filesystems prefer values between `2` and `5` seconds to balance responsiveness and IO load.
+- **Multiple drop-zones**: Run multiple SFTP agents with separate `listen.port` values and drop directories when per-tenant isolation is required. Because each agent manages its own event loop, horizontal scaling is achieved by adding more agents.
+- **File retention**: Choose `completion_strategy.archive` when regulators require proof of delivery. Combine with a scheduled clean-up job that enforces quotas on the archive directory.
 
 ### Secure SFTP Guidance
 
@@ -108,6 +132,23 @@ When exposing the built-in SFTP drop-zone, harden the deployment:
 - Protect private host key files with `chmod 600` and restrict access to the service account only. Maintain a rotation schedule and monitor for unauthorized changes.
 - Store static passwords or authorized-key material in a secure secrets manager. Inject values at runtime via environment variables or orchestration tools so that plain-text credentials never live in the image or repository.
 - Enable OS-level auditing on the drop directory so upload attempts, failures, and clean-up actions are logged centrally.
+
+### Operational runbooks and tests
+
+- **Smoke test new deployments**: After enabling the SFTP agent, upload a small JSON file via an SFTP client and confirm that it
+  is removed (or archived) according to the configured `completion_strategy`. Tail `agent.log` or the container stdout to ensure
+  the "Queued uploaded file" message appears without warnings about blocking handlers.
+- **Queue drain verification**: When stopping the service, RLA logs `SFTPAgent stopped` only after running a final background
+  scan. If the message does not appear, re-run the shutdown to avoid leaving orphaned files. Operators can also poll the
+  `processing_queue` depth exposed in DEBUG logs to make sure it returns to zero.
+- **Automated regression tests**: Run `pytest tests/logging_agent/test_sftp_agent_async.py::test_sftp_agent_concurrent_uploads`
+  to validate the non-blocking upload path, and `pytest tests/logging_agent/test_file_and_sftp_agents.py` to exercise the shared
+  queue mechanics. These tests start a live AsyncSSH server, upload multiple files concurrently, and assert that the processing
+  queue drains cleanly.
+- **Migration check**: When upgrading from versions prior to 1.4.0, review any custom automation that waited for uploads to
+  finish before closing the SFTP session. The server now closes channels immediately after the client closes the file; any
+  scripts that depended on synchronous `close()` semantics should instead poll the target SIEM or monitor the drop directory for
+  archival actions.
 
 ## Output Configuration
 
@@ -231,7 +272,11 @@ agents:
         port: 2222
       host_keys:
         - '/etc/rla/ssh_host_ed25519_key'
+      polling_interval_seconds: 2
       drop_directory: '/var/spool/rla/sftp-drop'
+      completion_strategy:
+        mode: 'archive'
+        archive_directory: '/var/spool/rla/sftp-archive'
       credential_policy:
         mode: 'public_key'
         users:

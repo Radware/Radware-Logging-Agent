@@ -74,7 +74,11 @@ agents:
   #       port: 2222
   #     host_keys:
   #       - "/etc/rla/ssh_host_ed25519_key"
+  #     polling_interval_seconds: 2                # 0 for continuous scans, >0 to sleep between passes
   #     drop_directory: "/var/spool/rla/sftp-drop"   # Ensure owned by the RLA user and not world-writable
+  #     completion_strategy:
+  #       mode: "archive"                           # Options: "archive", "delete"
+  #       archive_directory: "/var/spool/rla/sftp-archive"
   #     credential_policy:
   #       mode: "static"                              # Options: "static", "public_key"
   #       users:
