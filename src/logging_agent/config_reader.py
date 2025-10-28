@@ -162,7 +162,10 @@ class Config:
                 self.config['output']['batch'] = False
 
             # Process agents
-            self.config['agents'] = {agent['name']: agent for agent in self.config.get('agents', [])}
+            normalized_agents = []
+            for agent in self.config.get('agents', []):
+                normalized_agents.append(self._normalize_agent(agent))
+            self.config['agents'] = {agent['name']: agent for agent in normalized_agents}
 
         except yaml.YAMLError as exc:
             raise Exception(f"Error reading YAML: {exc}")
@@ -260,6 +263,119 @@ class Config:
                 target_format_dict[key] = default_value
             elif isinstance(existing_value, dict) and isinstance(default_value, dict):
                 self._apply_format_defaults(existing_value, default_value)
+
+    def _normalize_agent(self, agent):
+        agent_type = (agent.get('type') or '').lower()
+        product = agent.get('product')
+
+        if agent_type == 'file':
+            file_settings = agent.get('file_settings', {}) or {}
+            root_path = file_settings.get('root_path')
+            if root_path:
+                file_settings['root_path'] = str(self.normalize_path(root_path))
+
+            polling_interval = file_settings.get('polling_interval_seconds')
+            if polling_interval is not None:
+                try:
+                    file_settings['polling_interval_seconds'] = int(polling_interval)
+                except (TypeError, ValueError):
+                    file_settings['polling_interval_seconds'] = polling_interval
+
+            completion_strategy = file_settings.get('completion_strategy')
+            if isinstance(completion_strategy, str):
+                completion_strategy = {'mode': completion_strategy}
+            elif completion_strategy is None:
+                completion_strategy = {}
+            else:
+                completion_strategy = dict(completion_strategy)
+
+            archive_directory = completion_strategy.get('archive_directory')
+            if archive_directory:
+                completion_strategy['archive_directory'] = str(self.normalize_path(archive_directory))
+
+            file_settings['completion_strategy'] = completion_strategy
+            agent['file_settings'] = file_settings
+
+        elif agent_type == 'sftp':
+            sftp_settings = agent.get('sftp_settings', {}) or {}
+
+            listen = sftp_settings.pop('listen_address', None) or sftp_settings.get('listen', {})
+            listen_host = '0.0.0.0'
+            listen_port = None
+
+            if isinstance(listen, str):
+                host_part, _, port_part = listen.partition(':')
+                if host_part:
+                    listen_host = host_part
+                if port_part:
+                    try:
+                        listen_port = int(port_part)
+                    except ValueError:
+                        listen_port = None
+            elif isinstance(listen, dict):
+                listen_host = listen.get('host', listen_host)
+                port_value = listen.get('port')
+                try:
+                    listen_port = int(port_value) if port_value is not None else None
+                except (TypeError, ValueError):
+                    listen_port = None
+
+            requirements = supported_features.get(product or 'cloud_waap', {}).get('input_type_requirements', {})
+            default_port = requirements.get('sftp', {}).get('default_port', 2222)
+            if listen_port is None:
+                listen_port = default_port
+
+            sftp_settings['listen'] = {'host': listen_host, 'port': listen_port}
+
+            host_keys = sftp_settings.get('host_keys', [])
+            if isinstance(host_keys, (str, Path)):
+                host_keys = [host_keys]
+            normalized_host_keys = []
+            for key_path in host_keys:
+                if key_path:
+                    normalized_host_keys.append(str(self.normalize_path(str(key_path))))
+            sftp_settings['host_keys'] = normalized_host_keys
+
+            drop_directory = sftp_settings.get('drop_directory')
+            if drop_directory:
+                sftp_settings['drop_directory'] = str(self.normalize_path(drop_directory))
+
+            credential_policy = sftp_settings.get('credential_policy')
+            if isinstance(credential_policy, str):
+                credential_policy = {'mode': credential_policy}
+            elif credential_policy is None:
+                credential_policy = {}
+            else:
+                credential_policy = dict(credential_policy)
+
+            users = credential_policy.get('users', [])
+            if isinstance(users, dict):
+                users = [users]
+
+            normalized_users = []
+            for user in users:
+                normalized_user = dict(user)
+                home_dir = normalized_user.get('home_directory')
+                if home_dir:
+                    normalized_user['home_directory'] = str(self.normalize_path(home_dir))
+
+                authorized_keys = normalized_user.get('authorized_keys')
+                if isinstance(authorized_keys, (str, Path)):
+                    authorized_keys = [authorized_keys]
+                if authorized_keys:
+                    normalized_user['authorized_keys'] = [
+                        str(self.normalize_path(str(key_path))) for key_path in authorized_keys if key_path
+                    ]
+
+                normalized_users.append(normalized_user)
+
+            if normalized_users:
+                credential_policy['users'] = normalized_users
+
+            sftp_settings['credential_policy'] = credential_policy
+            agent['sftp_settings'] = sftp_settings
+
+        return agent
     def get_all_products(self):
         """
         Returns a list of all unique products assigned to agents.

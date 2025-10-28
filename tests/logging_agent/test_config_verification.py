@@ -46,6 +46,130 @@ def patch_session(monkeypatch, response):
     )
 
 
+def _base_output():
+    return {
+        'type': 'http',
+        'output_format': 'json',
+        'compatibility_mode': None,
+    }
+
+
+def test_verify_agent_config_accepts_file_agent(tmp_path):
+    root_path = tmp_path / "incoming"
+    archive_path = tmp_path / "archive"
+    root_path.mkdir()
+    archive_path.mkdir()
+
+    agent_config = {
+        'name': 'file-agent',
+        'type': 'file',
+        'product': 'cloud_waap',
+        'logs': {'Access': True},
+        'output': _base_output(),
+        'file_settings': {
+            'root_path': str(root_path),
+            'polling_interval_seconds': 30,
+            'completion_strategy': {
+                'mode': 'archive',
+                'archive_directory': str(archive_path),
+            }
+        }
+    }
+
+    assert config_verification.verify_agent_config(agent_config)
+
+
+def test_verify_agent_config_rejects_file_agent_with_missing_archive(tmp_path):
+    root_path = tmp_path / "incoming"
+    root_path.mkdir()
+
+    agent_config = {
+        'name': 'file-agent-invalid',
+        'type': 'file',
+        'product': 'cloud_waap',
+        'logs': {'Access': True},
+        'output': _base_output(),
+        'file_settings': {
+            'root_path': str(root_path),
+            'polling_interval_seconds': 30,
+            'completion_strategy': {
+                'mode': 'archive',
+                'archive_directory': str(root_path / "archive"),
+            }
+        }
+    }
+
+    assert not config_verification.verify_agent_config(agent_config)
+
+
+def test_verify_agent_config_accepts_sftp_agent_public_key(tmp_path):
+    drop_directory = tmp_path / "drop"
+    host_key = tmp_path / "ssh_host_ed25519_key"
+    authorized_key = tmp_path / "partner.pub"
+    user_home = drop_directory / "partner"
+
+    drop_directory.mkdir()
+    user_home.mkdir()
+    host_key.write_text("dummy")
+    authorized_key.write_text("ssh-ed25519 AAAA test")
+
+    agent_config = {
+        'name': 'sftp-agent',
+        'type': 'sftp',
+        'product': 'cloud_waap',
+        'logs': {'Access': True},
+        'output': _base_output(),
+        'sftp_settings': {
+            'listen': {'host': '0.0.0.0', 'port': 2222},
+            'host_keys': [str(host_key)],
+            'drop_directory': str(drop_directory),
+            'credential_policy': {
+                'mode': 'public_key',
+                'users': [
+                    {
+                        'username': 'partner',
+                        'authorized_keys': [str(authorized_key)],
+                        'home_directory': str(user_home),
+                    }
+                ],
+            },
+        }
+    }
+
+    assert config_verification.verify_agent_config(agent_config)
+
+
+def test_verify_agent_config_rejects_sftp_agent_missing_password(tmp_path):
+    drop_directory = tmp_path / "drop"
+    host_key = tmp_path / "ssh_host_ed25519_key"
+
+    drop_directory.mkdir()
+    host_key.write_text("dummy")
+
+    agent_config = {
+        'name': 'sftp-agent-invalid',
+        'type': 'sftp',
+        'product': 'cloud_waap',
+        'logs': {'Access': True},
+        'output': _base_output(),
+        'sftp_settings': {
+            'listen': {'host': '0.0.0.0', 'port': 2222},
+            'host_keys': [str(host_key)],
+            'drop_directory': str(drop_directory),
+            'credential_policy': {
+                'mode': 'static',
+                'users': [
+                    {
+                        'username': 'partner',
+                    }
+                ],
+            },
+        }
+    }
+
+    assert not config_verification.verify_agent_config(agent_config)
+
+
 def test_splunk_hec_http_accepts_no_data(monkeypatch):
     response = DummyResponse(400, json_data={"text": "No data"})
     monkeypatch.setattr(
