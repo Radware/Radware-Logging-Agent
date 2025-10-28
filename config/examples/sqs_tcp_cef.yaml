@@ -1,0 +1,32 @@
+aws_credentials:
+  access_key_id: "AKIA...REPLACE"
+  secret_access_key: "REPLACE_ME"
+  region: "us-east-1"
+
+agents:
+  - name: "sqs-to-cef"
+    type: "sqs"
+    product: "cloud_waap"
+    sqs_settings:
+      queue_name: "radware-waap-logs"
+      delete_on_failure: false
+    logs:
+      Access: true
+      WAF: true
+      Bot: false
+      DDoS: true
+      WebDDoS: false
+      CSP: true
+      unknown: false
+
+output:
+  output_format: "cef"
+  type: "tcp"
+  destination: "siem.example.com:514"
+  batch: false
+  compatibility_mode: "none"
+
+formats:
+  cef:
+    delimiter: "\n"
+    time_format: "ISO8601"

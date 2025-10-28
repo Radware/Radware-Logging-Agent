@@ -1,0 +1,36 @@
+agents:
+  - name: "file-ecs"
+    type: "file"
+    product: "cloud_waap"
+    file_settings:
+      root_path: "/data/rla/incoming"
+      polling_interval_seconds: 5
+      completion_strategy:
+        mode: "delete"
+    logs:
+      Access: true
+      WAF: true
+      Bot: false
+      DDoS: true
+      WebDDoS: false
+      CSP: true
+      unknown: false
+
+output:
+  output_format: "json"
+  type: "https"
+  destination: "https://ecs-endpoint.example.com/rla"
+  batch: true
+  compatibility_mode: "ECS"
+
+https:
+  verify: true
+  authentication:
+    auth_type: "basic"
+    username: "ecs-user"
+    password: "CHANGE_ME_PASSWORD"
+
+formats:
+  json:
+    time_format: "ISO8601"
+    unify_fields: true

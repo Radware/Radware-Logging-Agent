@@ -90,20 +90,34 @@ def test_identify_product_log_type_uses_relative_key(config_fixture, input_type)
     processor = DataProcessor(config_fixture)
     metadata = {'relative_key': 'relative/path'}
     with patch.object(CloudWAAPProcessor, 'identify_log_type', return_value='Access') as identify_mock:
-        log_type = processor.identify_product_log_type({'key': 'fallback'}, metadata, input_type, 'cloud_waap')
+        sample_event = {'request': 'GET /index.html HTTP/1.1', 'protocol': 'https', 'http_method': 'GET'}
+        log_type = processor.identify_product_log_type(
+            {'key': 'fallback'},
+            metadata,
+            input_type,
+            'cloud_waap',
+            sample_event
+        )
 
     assert log_type == 'Access'
-    identify_mock.assert_called_once_with('relative/path')
+    identify_mock.assert_called_once_with('relative/path', sample_event)
 
 
 def test_identify_product_log_type_falls_back_to_input_fields(config_fixture):
     processor = DataProcessor(config_fixture)
     metadata = {}
     with patch.object(CloudWAAPProcessor, 'identify_log_type', return_value='Access') as identify_mock:
-        log_type = processor.identify_product_log_type({'key': 'fallback'}, metadata, 'sqs', 'cloud_waap')
+        sample_event = {'request': 'GET /home HTTP/1.1', 'protocol': 'http'}
+        log_type = processor.identify_product_log_type(
+            {'key': 'fallback'},
+            metadata,
+            'sqs',
+            'cloud_waap',
+            sample_event
+        )
 
     assert log_type == 'Access'
-    identify_mock.assert_called_once_with('fallback')
+    identify_mock.assert_called_once_with('fallback', sample_event)
 
 
 def test_gather_data_fields_uses_relative_key(config_fixture):

@@ -4,10 +4,17 @@ RLA is a log processing tool designed to streamline the integration of Radware p
 
 ## Current Version
 
-**Version 1.4.0** - Released on 18th November 2024
+**Version 2.0.0** - Released on 5th December 2024
 
 ## Release Notes
 
+
+### Version 2.0.0 - 05/12/2024
+
+- Added multi-signal Cloud WAAP detection that cross-checks file path hints with payload markers, unlocking flattened folder deployments and clearer debug telemetry when heuristics disagree.
+- Plumbed payload sampling through the data processor so every agent type benefits from the enhanced classifier without manual wiring.
+- Published curated configuration snippets (see `config/examples/`) for common topologies, including a file agent streaming to Splunk HEC compatibility mode, SQS-to-CEF forwarding, and embedded SFTP drop-zones.
+- Expanded operator documentation with troubleshooting guidance for the new detection flow and direct links to the scenario-driven configuration files.
 
 ### Version 1.4.0 - 18/11/2024
 
@@ -56,6 +63,12 @@ RLA is a log processing tool designed to streamline the integration of Radware p
 - **Cloud WAAP Integration**: Efficiently ingests logs from Radware Cloud WAAP exported to AWS S3.
 - **Versatile Log Handling**: Capable of processing various log types including Access, WAF, Bot, DDoS, and Web DDoS.
 
+### Cloud WAAP Log Type Detection
+- Combines key-based hints with payload inspection so flattened drop zones without folder hierarchy still classify reliably.
+- Confirms each log family (Access, WAF, Bot, DDoS, WebDDoS, CSP) when at least two characteristic markers (for example, Access `request` plus `http_bytes_in`, WAF `receivedTimeStamp` plus `violationCategory`) appear in a sampled event.
+- Falls back to `Unknown` whenever neither the file path nor the payload exposes enough markers, honoring the `logs.unknown` configuration for downstream handling.
+- Emits debug logs whenever payload markers override or fail to confirm the key-derived guess to streamline troubleshooting.
+
 ### Log Processing and Conversion
 - **Dynamic Format Conversion**: Converts logs to multiple formats such as JSON, CEF, and LEEF, with customizable options.
 - **Selective Log Processing**: Provides the ability to filter and process specific log types, enhancing control over log ingestion.
@@ -76,6 +89,17 @@ RLA is a log processing tool designed to streamline the integration of Radware p
 - **output_directory**: Define the directory to store temporary files during log processing.
 - **log_directory**: Set the directory for storing RLA's log files.
 - **logging_levels**: Choose the logging level for RLA's internal logs. Options: `INFO`, `WARNING`, `DEBUG`, `ERROR`.
+
+### Example Configurations
+
+Minimal, scenario-focused configuration files are available in `config/examples/`:
+- `file_splunk_hec.yaml`: File agent watching a local drop directory and forwarding unified events to Splunk via HTTPS with Splunk HEC compatibility mode enabled.
+- `file_https_ecs.yaml`: File agent forwarding JSON output over HTTPS using ECS compatibility mode for Elastic integrations.
+- `sqs_tcp_cef.yaml`: SQS-based agent streaming Cloud WAAP logs to a TCP destination formatted as CEF, suitable for SIEM receivers.
+- `sqs_tls_json_unknown.yaml`: SQS agent that enables unknown log processing and forwards normalized JSON over mutual TLS.
+- `sftp_tls_json.yaml`: Embedded SFTP drop-zone configuration that archives completed uploads and forwards JSON output over mutual TLS.
+
+Each file contains only the fields required for the scenario so you can copy-paste and adapt without trimming extraneous options.
 
 ## AWS Credentials
 
@@ -145,7 +169,7 @@ When exposing the built-in SFTP drop-zone, harden the deployment:
   to validate the non-blocking upload path, and `pytest tests/logging_agent/test_file_and_sftp_agents.py` to exercise the shared
   queue mechanics. These tests start a live AsyncSSH server, upload multiple files concurrently, and assert that the processing
   queue drains cleanly.
-- **Migration check**: When upgrading from versions prior to 1.4.0, review any custom automation that waited for uploads to
+- **Migration check**: When upgrading from versions prior to 2.0.0, review any custom automation that waited for uploads to
   finish before closing the SFTP session. The server now closes channels immediately after the client closes the file; any
   scripts that depended on synchronous `close()` semantics should instead poll the target SIEM or monitor the drop directory for
   archival actions.

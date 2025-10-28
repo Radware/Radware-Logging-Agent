@@ -51,7 +51,14 @@ class DataProcessor:
             self.logger.error(f"Failed to load data for input type: {input_type}")
             return False
 
-        log_type = self.identify_product_log_type(input_fields, metadata, input_type, product) or "Unknown"
+        sample_event = CloudWAAPProcessor.extract_sample_event(data)
+        log_type = self.identify_product_log_type(
+            input_fields,
+            metadata,
+            input_type,
+            product,
+            sample_event
+        ) or "Unknown"
         supported_log_types = supported_features[product]["supported_log_types"]
         logs_config = self.config.get('logs', {}) or {}
         log_configuration = supported_features.get(product, {}).get('log_configuration', {})
@@ -100,7 +107,7 @@ class DataProcessor:
         #self.logger.info(f"Task completed. Time taken: {end_time - start_time}")
         return success
 
-    def identify_product_log_type(self, log_info, metadata, input_type, product):
+    def identify_product_log_type(self, log_info, metadata, input_type, product, sample_event=None):
         """
         Identifies the log type based on product and input type.
 
@@ -115,7 +122,7 @@ class DataProcessor:
         log_type = ""
         if input_type in {"sqs", "file", "sftp"} and product == "cloud_waap":
             key = metadata.get('relative_key') or metadata.get('key') or log_info.get('key', '')
-            log_type = CloudWAAPProcessor.identify_log_type(key)
+            log_type = CloudWAAPProcessor.identify_log_type(key, sample_event)
         return log_type
 
     def gather_data_fields(self, input_fields, metadata, input_type, log_type, product):

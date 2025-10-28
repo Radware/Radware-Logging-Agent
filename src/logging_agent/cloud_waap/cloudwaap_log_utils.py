@@ -17,32 +17,214 @@ class CloudWAAPProcessor:
     parsing various components of the logs, and extracting detailed information from log entries.
     """
 
-    @staticmethod
-    def identify_log_type(key):
+    LOG_TYPE_MARKERS = {
+        "Access": {
+            "httpmethod",
+            "responsecode",
+            "httpbytesin",
+            "httpbytesout",
+            "httpversion",
+            "requesttime",
+        },
+        "WAF": {
+            "receivedtimestamp",
+            "violationcategory",
+            "violationdetails",
+            "ruleid",
+            "policyid",
+            "request",
+            "protocol",
+        },
+        "Bot": {
+            "botcategory",
+            "sessioncookie",
+            "signaturepattern",
+            "violationreason",
+            "tid",
+            "site",
+            "url",
+            "policyid",
+        },
+        "DDoS": {
+            "sourceip",
+            "destinationip",
+            "category",
+            "name",
+            "id",
+            "transid",
+        },
+        "WebDDoS": {
+            "attackvector",
+            "currenttimestamp",
+            "starttime",
+            "endtime",
+            "latestrealtimesignature",
+            "mitigation",
+            "detection",
+            "rps",
+            "attackid",
+        },
+        "CSP": {
+            "receivedtimestamp",
+            "violationtype",
+            "details",
+            "targetmodule",
+            "aggregateduseragent",
+            "urls",
+            "transid",
+        },
+    }
+    MARKER_THRESHOLD = 2
+    _ALL_MARKER_KEYS = {marker for markers in LOG_TYPE_MARKERS.values() for marker in markers}
+
+    @classmethod
+    def identify_log_type(cls, key, payload_sample=None):
         """
-        Identify the type of Cloud WAAP log based on the key or file name.
+        Identify the type of Cloud WAAP log using the key or file name, optionally
+        confirming with payload markers when a sample event is available.
 
         Args:
             key (str): The S3 key or file name of the log.
+            payload_sample (dict | None): Representative payload event used to confirm the log type.
 
         Returns:
             str: The identified type of log ('Access', a specific log type, or 'Unknown').
         """
         try:
-            log_type = "Unknown"
-            parts = key.split("/")
+            key = key or ""
+            guess = cls._identify_log_type_from_key(key)
+            if payload_sample is None:
+                return guess
 
-            if parts:
-                last_part = parts[-1]
-                if last_part.startswith("rdwr_log"):
-                    log_type = "Access"
-                elif last_part.startswith("rdwr_event"):
-                    log_type = parts[-2]
+            marker_scores = cls._score_payload_markers(payload_sample)
+            if not marker_scores:
+                return guess
 
-            return log_type
+            matching_types = {log_type: hits for log_type, hits in marker_scores.items() if hits >= cls.MARKER_THRESHOLD}
+
+            if matching_types:
+                if guess in matching_types:
+                    if len(matching_types) > 1:
+                        logger.debug(
+                            f"Multiple marker matches for key '{key}'; keeping key-derived log type '{guess}'. Matches: {matching_types}"
+                        )
+                    return guess
+
+                best_log_type, best_score = max(
+                    matching_types.items(),
+                    key=lambda item: (item[1], item[0] == guess)
+                )
+                if guess != "Unknown":
+                    logger.debug(
+                        f"Key-derived log type '{guess}' for key '{key}' not confirmed by markers; "
+                        f"selected '{best_log_type}' based on payload markers ({best_score} matches)."
+                    )
+                else:
+                    logger.debug(
+                        f"Identified log type '{best_log_type}' for key '{key}' using payload markers ({best_score} matches)."
+                    )
+                return best_log_type
+
+            if guess != "Unknown":
+                logger.debug(
+                    f"Markers did not confirm key-derived log type '{guess}' for key '{key}'. Falling back to 'Unknown'."
+                )
+            else:
+                logger.debug(f"No marker matches found for key '{key}'. Returning 'Unknown'.")
+            return "Unknown"
         except Exception as e:
             logger.error(f"Error identifying log type for key '{key}': {e}")
             return "Unknown"
+
+    @staticmethod
+    def _identify_log_type_from_key(key):
+        log_type = "Unknown"
+        parts = key.split("/") if isinstance(key, str) else []
+
+        if parts:
+            last_part = parts[-1]
+            if isinstance(last_part, str) and last_part.startswith("rdwr_log"):
+                log_type = "Access"
+            elif isinstance(last_part, str) and last_part.startswith("rdwr_event") and len(parts) >= 2:
+                log_type = parts[-2]
+
+        return log_type
+
+    @classmethod
+    def extract_sample_event(cls, payload):
+        """
+        Traverse a payload structure to obtain a representative event dictionary.
+
+        Args:
+            payload (object): Loaded payload content (list, dict, etc.).
+
+        Returns:
+            dict | None: A dictionary representing a single event, or None if not found.
+        """
+        try:
+            sample = cls._find_first_event(payload, depth=0)
+            return sample if isinstance(sample, dict) else None
+        except Exception as e:
+            logger.debug(f"Failed to extract sample event from payload: {e}")
+            return None
+
+    @classmethod
+    def _find_first_event(cls, payload, depth):
+        if depth > 6:
+            return None
+
+        if isinstance(payload, dict):
+            if cls._looks_like_event_dict(payload):
+                return payload
+            for value in payload.values():
+                sample = cls._find_first_event(value, depth + 1)
+                if sample is not None:
+                    return sample
+        elif isinstance(payload, list):
+            for item in payload:
+                sample = cls._find_first_event(item, depth + 1)
+                if sample is not None:
+                    return sample
+        return None
+
+    @classmethod
+    def _looks_like_event_dict(cls, candidate):
+        if not isinstance(candidate, dict) or not candidate:
+            return False
+
+        normalized_keys = cls._collect_normalized_keys(candidate)
+        if normalized_keys & cls._ALL_MARKER_KEYS:
+            return True
+
+        return any(not isinstance(value, (dict, list)) for value in candidate.values())
+
+    @classmethod
+    def _score_payload_markers(cls, sample_event):
+        if not isinstance(sample_event, dict):
+            return {}
+
+        normalized_keys = cls._collect_normalized_keys(sample_event)
+        scores = {}
+        for log_type, markers in cls.LOG_TYPE_MARKERS.items():
+            hits = len(normalized_keys & markers)
+            if hits:
+                scores[log_type] = hits
+        return scores
+
+    @classmethod
+    def _collect_normalized_keys(cls, payload):
+        keys = set()
+        for key in payload.keys():
+            normalized = cls._normalize_field_name(key)
+            if normalized:
+                keys.add(normalized)
+        return keys
+
+    @staticmethod
+    def _normalize_field_name(field_name):
+        if not isinstance(field_name, str):
+            return ""
+        return ''.join(ch for ch in field_name if ch.isalnum()).lower()
 
     @staticmethod
     def identify_application_id(key, log_type):
@@ -690,4 +872,3 @@ class CloudWAAPProcessor:
         except Exception as exc:
             logger.error(f"Error normalizing event fields for {product}/{log_type}: {exc}")
             return event
-

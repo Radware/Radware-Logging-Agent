@@ -1,0 +1,39 @@
+general:
+  output_directory: "/var/spool/rla/tmp"
+
+agents:
+  - name: "file-splunk-hec"
+    type: "file"
+    product: "cloud_waap"
+    file_settings:
+      root_path: "/var/spool/rla/incoming"
+      polling_interval_seconds: 10
+      completion_strategy:
+        mode: "archive"
+        archive_directory: "/var/spool/rla/archive"
+    logs:
+      Access: true
+      WAF: true
+      Bot: true
+      DDoS: true
+      WebDDoS: true
+      CSP: true
+      unknown: true
+
+output:
+  output_format: "json"
+  type: "https"
+  destination: "https://splunk.example.com:8088/services/collector"
+  batch: true
+  compatibility_mode: "Splunk HEC"
+
+https:
+  verify: true
+  authentication:
+    auth_type: "bearer"
+    token: "CHANGE_ME_SPLUNK_HEC_TOKEN"
+
+formats:
+  json:
+    time_format: "epoch_ms_str"
+    unify_fields: true

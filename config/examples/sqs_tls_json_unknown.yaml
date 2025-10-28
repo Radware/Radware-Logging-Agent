@@ -1,0 +1,38 @@
+aws_credentials:
+  access_key_id: "AKIA...REPLACE"
+  secret_access_key: "REPLACE_ME"
+  region: "eu-west-1"
+
+agents:
+  - name: "sqs-json-unknown"
+    type: "sqs"
+    product: "cloud_waap"
+    sqs_settings:
+      queue_name: "rla-waap-flat-files"
+      delete_on_failure: true
+    logs:
+      Access: true
+      WAF: true
+      Bot: true
+      DDoS: true
+      WebDDoS: true
+      CSP: true
+      unknown: true
+
+output:
+  output_format: "json"
+  type: "tls"
+  destination: "syslog.example.com:6514"
+  batch: true
+  compatibility_mode: "none"
+
+tls:
+  verify: true
+  ca_cert: "/etc/rla/tls/ca.pem"
+  client_cert: "/etc/rla/tls/client.pem"
+  client_key: "/etc/rla/tls/client.key"
+
+formats:
+  json:
+    time_format: "epoch_ms_str"
+    unify_fields: true
