@@ -44,7 +44,7 @@ def input_info():
     "key": "CWAAP-Logs-unprocessed/Access-Logs/805c88ac-aaf9-471a-9030-391c0393990d/rdwr_log_DEMO_New CWAF Automated Demo_20240131H070000_20240131H070500_79244803-9682-4d0f-924d-567268708991.json"
 }
 @pytest.fixture
-def mock_s3_downloader(mocker):
+def mock_s3_downloader():
     with patch('logging_agent.data_loader.S3Downloader') as MockDownloader:
         mock_instance = MockDownloader.return_value
         mock_instance.download.return_value = True  # Simulate successful download
@@ -91,21 +91,27 @@ def mock_dependencies(monkeypatch):
     mock_data_loader = MagicMock(spec=DataLoader)
     mock_transformer = MagicMock(spec=Transformer)
     mock_sender_send_data = MagicMock(return_value=True)  # This mock is for the send_data method specifically
+    mock_cleanup = MagicMock()
 
     # Correctly replace the instances where these would be instantiated
     monkeypatch.setattr("logging_agent.data_processor.DataLoader", lambda config: mock_data_loader)
     monkeypatch.setattr("logging_agent.data_processor.Transformer", lambda config: mock_transformer)
     monkeypatch.setattr("logging_agent.sender.Sender.send_data", mock_sender_send_data)  # Correctly mock the static method
+    monkeypatch.setattr("logging_agent.data_processor.Utility.cleanup", mock_cleanup)
 
 
     # Setup mock return values
-    mock_data_loader.load_data.return_value = {'data': [{'sample': 'data'}], 'metadata': {}}
+    mock_data_loader.load_data.return_value = {
+        'data': [{'sample': 'data'}],
+        'metadata': {'cleanup': True, 'file_path': '/tmp/mock-file', 'relative_key': 'mock-key'}
+    }
     mock_transformer.transform_content.return_value = [{'sample': 'data'}]
 
     return {
         'data_loader': mock_data_loader,
         'transformer': mock_transformer,
-        'sender_send_data': mock_sender_send_data
+        'sender_send_data': mock_sender_send_data,
+        'utility_cleanup': mock_cleanup
     }
 
 @pytest.fixture

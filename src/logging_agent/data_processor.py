@@ -42,13 +42,16 @@ class DataProcessor:
         load_end_time = datetime.datetime.now()
         self.logger.info(f"Loading completed. Time taken: {load_end_time - load_start_time}. File size: {file_size} bytes")
 
-        data = loaded_data.get('data', None)
-        metadata = loaded_data.get('metadata', {})
+        data = None
+        metadata = {}
+        if loaded_data:
+            data = loaded_data.get('data')
+            metadata = loaded_data.get('metadata', {})
         if data is None:
             self.logger.error(f"Failed to load data for input type: {input_type}")
             return False
 
-        log_type = self.identify_product_log_type(input_fields, input_type, product)
+        log_type = self.identify_product_log_type(input_fields, metadata, input_type, product)
         # Check if the log type is supported for the product
         if log_type not in supported_features[product]["supported_log_types"]:
             self.logger.info(f"Skipping unsupported log type {log_type} for product {product}.")
@@ -59,7 +62,7 @@ class DataProcessor:
             self.logger.info(f"Skipping log type {log_type} as per configuration.")
             return True  # Successfully handled by skipping
 
-        data_fields = self.gather_data_fields(input_fields, input_type, log_type, product)
+        data_fields = self.gather_data_fields(input_fields, metadata, input_type, log_type, product)
         transform_start_time = datetime.datetime.now()
         transformed_data = self.transform_data(data, data_fields)
         transform_end_time = datetime.datetime.now()
@@ -77,7 +80,8 @@ class DataProcessor:
 
         # Cleanup
         file_path = metadata.get('file_path')
-        if file_path:
+        cleanup_flag = metadata.get('cleanup')
+        if success and cleanup_flag and file_path:
             Utility.cleanup(file_path)
 
         # Cleanup and final logging
@@ -87,7 +91,7 @@ class DataProcessor:
         #self.logger.info(f"Task completed. Time taken: {end_time - start_time}")
         return success
 
-    def identify_product_log_type(self, log_info, input_type, product):
+    def identify_product_log_type(self, log_info, metadata, input_type, product):
         """
         Identifies the log type based on product and input type.
 
@@ -100,12 +104,12 @@ class DataProcessor:
             str: Identified log type.
         """
         log_type = ""
-        if input_type == "sqs" and product == "cloud_waap":
-            key = log_info.get('key', '')
+        if input_type in {"sqs", "file", "sftp"} and product == "cloud_waap":
+            key = metadata.get('relative_key') or metadata.get('key') or log_info.get('key', '')
             log_type = CloudWAAPProcessor.identify_log_type(key)
         return log_type
 
-    def gather_data_fields(self, input_fields, input_type, log_type, product):
+    def gather_data_fields(self, input_fields, metadata, input_type, log_type, product):
         """
         Gathers additional data fields required for transformation.
 
@@ -119,15 +123,15 @@ class DataProcessor:
             dict: Data fields collected for transformation.
         """
         data_fields = {}
-        if input_type == "sqs" and product == "cloud_waap":
-            key = input_fields.get('key')
-            metadata = CloudWAAPProcessor.extract_metadata(key, product, log_type)
+        if input_type in {"sqs", "file", "sftp"} and product == "cloud_waap":
+            key = metadata.get('relative_key') or metadata.get('key') or input_fields.get('key')
+            waap_metadata = CloudWAAPProcessor.extract_metadata(key, product, log_type)
             data_fields = {
                 'key': key,
                 'input_type': input_type,
                 'log_type': log_type,
                 'product': product,
-                'metadata': metadata
+                'metadata': waap_metadata
             }
         return data_fields
 

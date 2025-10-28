@@ -12,13 +12,20 @@ class DataLoader:
         self.logger = get_logger('data_loader')  # Initialize logger as an instance attribute
 
     def load_data(self, input_type, input_info):
-        if input_type == "sqs":
-            return self.load_from_s3(input_info)
-        else:
+        loaders = {
+            "sqs": self.load_from_s3,
+            "file": self.load_from_file_system,
+            "sftp": self.load_from_file_system,
+        }
+
+        loader = loaders.get(input_type)
+        if not loader:
             self.logger.error(f"Unsupported input type: {input_type}")
             return {"data": None, "metadata": {}}
 
-    def load_from_s3(self, input_info):
+        return loader(input_info, input_type)
+
+    def load_from_s3(self, input_info, input_type="sqs"):
         """
         Loads data from S3. Checks if the file already exists, handles partial files,
         and downloads the file if required.
@@ -34,6 +41,12 @@ class DataLoader:
         expected_size = input_info.get('expected_size', '')
         output_directory = self.config.get('output_directory', '/tmp')
         download_path = os.path.join(output_directory, os.path.basename(key))
+        metadata = {
+            "file_path": download_path,
+            "key": key,
+            "relative_key": key,
+            "cleanup": True,
+        }
 
         # Check if file already exists and decide whether to download
         download_required = True
@@ -55,27 +68,78 @@ class DataLoader:
             downloader = S3Downloader(s3_config)
             if not downloader.download(bucket, key, download_path):
                 self.logger.error(f"Failed to download {key} from bucket {bucket}")
-                return None
+                return {"data": None, "metadata": metadata}
 
-        # Determine the file type and process accordingly
-        file_extension = os.path.splitext(download_path)[1]
         try:
-            if file_extension == '.gz':
-                # Decompress and load JSON data
-                with gzip.open(download_path, 'rt') as f:
-                    data = json.load(f)
-            elif file_extension == '.json':
-                # Load JSON data
-                with open(download_path, 'r') as f:
-                    data = json.load(f)
-            elif file_extension == '.ndjson':
-                # Load NDJSON data
-                with open(download_path, 'r') as f:
-                    data = [json.loads(line) for line in f]
-            else:
-                self.logger.error(f"Unsupported file format: {file_extension}")
-                return {"data": None, "metadata": {}}
-            return {"data": data, "metadata": {"file_path": download_path, "key": key}}
+            data = self._load_local_file(download_path)
+            if data is None:
+                return {"data": None, "metadata": metadata}
+            return {"data": data, "metadata": metadata}
         except Exception as e:
             self.logger.error(f"Error processing file: {download_path}: {e}")
-            return {"data": None, "metadata": {"file_path": download_path, "key": key}}
+            return {"data": None, "metadata": metadata}
+
+    def load_from_file_system(self, input_info, input_type):
+        root_path = None
+        if input_type == "file":
+            root_path = self.config.get('file_settings', {}).get('root_path')
+        elif input_type == "sftp":
+            root_path = self.config.get('sftp_settings', {}).get('drop_directory')
+
+        provided_path = input_info.get('file_path') or input_info.get('path')
+        if not provided_path:
+            self.logger.error(f"No file path provided for input type: {input_type}")
+            return {"data": None, "metadata": {}}
+
+        absolute_path = provided_path
+        if not os.path.isabs(absolute_path):
+            if root_path:
+                absolute_path = os.path.join(root_path, absolute_path)
+            absolute_path = os.path.abspath(absolute_path)
+        else:
+            absolute_path = os.path.abspath(absolute_path)
+
+        if not os.path.exists(absolute_path):
+            self.logger.error(f"File does not exist: {absolute_path}")
+            return {"data": None, "metadata": {}}
+
+        relative_key = self._compute_relative_key(absolute_path, root_path)
+        metadata = {
+            "file_path": absolute_path,
+            "key": relative_key,
+            "relative_key": relative_key,
+            "cleanup": False,
+        }
+
+        try:
+            data = self._load_local_file(absolute_path)
+            if data is None:
+                return {"data": None, "metadata": metadata}
+            return {"data": data, "metadata": metadata}
+        except Exception as e:
+            self.logger.error(f"Error processing file: {absolute_path}: {e}")
+            return {"data": None, "metadata": metadata}
+
+    def _load_local_file(self, path):
+        file_extension = os.path.splitext(path)[1].lower()
+        if file_extension == '.gz':
+            with gzip.open(path, 'rt') as f:
+                return json.load(f)
+        if file_extension == '.json':
+            with open(path, 'r') as f:
+                return json.load(f)
+        if file_extension == '.ndjson':
+            with open(path, 'r') as f:
+                return [json.loads(line) for line in f]
+
+        self.logger.error(f"Unsupported file format: {file_extension}")
+        return None
+
+    @staticmethod
+    def _compute_relative_key(absolute_path, root_path):
+        if root_path:
+            try:
+                return os.path.relpath(absolute_path, root_path)
+            except ValueError:
+                pass
+        return os.path.basename(absolute_path)
