@@ -11,6 +11,17 @@ import certifi
 logger = get_logger('config_verification')
 
 
+def _directory_is_writable(path):
+    return os.path.isdir(path) and os.access(path, os.W_OK)
+
+
+def _validate_authorized_keys(key_paths):
+    for key_path in key_paths:
+        if not os.path.isfile(key_path):
+            logger.error(f"Authorized key file not found: {key_path}")
+            return False
+    return True
+
 
 def test_tcp_connection(host, port, timeout=5, compatibility=None):
     """
@@ -374,7 +385,8 @@ def verify_agent_config(agent_config):
         logger.error(f"Unsupported product: {product} in agent {agent_config['name']}")
         return False
 
-    if agent_config['type'] not in supported_features[product]['supported_input_type']:
+    agent_type = (agent_config.get('type') or '').lower()
+    if agent_type not in supported_features[product]['supported_input_type']:
         logger.error(f"Unsupported input type: {agent_config['type']} for product: {product} in agent {agent_config['name']}")
         return False
 
@@ -411,6 +423,132 @@ def verify_agent_config(agent_config):
                 f" and output format must be one of {requirements.get('output_format', [])}."
             )
             return False
+
+    input_requirements = supported_features[product].get('input_type_requirements', {})
+
+    if agent_type == 'file':
+        file_settings = agent_config.get('file_settings')
+        if not file_settings:
+            logger.error(f"File agent {agent_config['name']} must define file_settings")
+            return False
+
+        root_path = file_settings.get('root_path')
+        if not root_path or not os.path.isdir(root_path):
+            logger.error(f"File agent {agent_config['name']} root_path is invalid: {root_path}")
+            return False
+        if not _directory_is_writable(root_path):
+            logger.error(f"File agent {agent_config['name']} root_path is not writable: {root_path}")
+            return False
+
+        polling_interval = file_settings.get('polling_interval_seconds')
+        if polling_interval is None:
+            logger.error(f"File agent {agent_config['name']} must define polling_interval_seconds")
+            return False
+        try:
+            polling_interval = int(polling_interval)
+        except (TypeError, ValueError):
+            logger.error(f"File agent {agent_config['name']} polling_interval_seconds must be an integer")
+            return False
+
+        polling_constraints = input_requirements.get('file', {}).get('polling_interval_seconds', {})
+        min_poll = polling_constraints.get('min')
+        max_poll = polling_constraints.get('max')
+        if min_poll is not None and polling_interval < min_poll:
+            logger.error(f"File agent {agent_config['name']} polling interval {polling_interval} below minimum {min_poll}")
+            return False
+        if max_poll is not None and polling_interval > max_poll:
+            logger.error(f"File agent {agent_config['name']} polling interval {polling_interval} exceeds maximum {max_poll}")
+            return False
+
+        completion_strategy = file_settings.get('completion_strategy', {})
+        if isinstance(completion_strategy, str):
+            completion_strategy = {'mode': completion_strategy}
+
+        mode = completion_strategy.get('mode')
+        allowed_modes = input_requirements.get('file', {}).get('completion_modes', [])
+        if mode not in allowed_modes:
+            logger.error(f"File agent {agent_config['name']} completion mode '{mode}' is not supported")
+            return False
+
+        if mode == 'archive':
+            archive_directory = completion_strategy.get('archive_directory')
+            if not archive_directory or not os.path.isdir(archive_directory):
+                logger.error(f"File agent {agent_config['name']} archive_directory is invalid: {archive_directory}")
+                return False
+            if not _directory_is_writable(archive_directory):
+                logger.error(f"File agent {agent_config['name']} archive_directory is not writable: {archive_directory}")
+                return False
+
+    if agent_type == 'sftp':
+        sftp_settings = agent_config.get('sftp_settings')
+        if not sftp_settings:
+            logger.error(f"SFTP agent {agent_config['name']} must define sftp_settings")
+            return False
+
+        listen = sftp_settings.get('listen', {})
+        port = listen.get('port')
+        try:
+            port = int(port)
+        except (TypeError, ValueError):
+            logger.error(f"SFTP agent {agent_config['name']} listen port is invalid: {port}")
+            return False
+        if not (0 < port < 65536):
+            logger.error(f"SFTP agent {agent_config['name']} listen port out of range: {port}")
+            return False
+
+        drop_directory = sftp_settings.get('drop_directory')
+        if not drop_directory or not os.path.isdir(drop_directory):
+            logger.error(f"SFTP agent {agent_config['name']} drop_directory is invalid: {drop_directory}")
+            return False
+        if not _directory_is_writable(drop_directory):
+            logger.error(f"SFTP agent {agent_config['name']} drop_directory is not writable: {drop_directory}")
+            return False
+
+        host_keys = sftp_settings.get('host_keys', [])
+        if not host_keys:
+            logger.error(f"SFTP agent {agent_config['name']} must define at least one host key")
+            return False
+        for host_key in host_keys:
+            if not os.path.isfile(host_key):
+                logger.error(f"SFTP agent {agent_config['name']} host key not found: {host_key}")
+                return False
+
+        credential_policy = sftp_settings.get('credential_policy') or {}
+        mode = credential_policy.get('mode')
+        allowed_modes = input_requirements.get('sftp', {}).get('credential_modes', [])
+        if mode not in allowed_modes:
+            logger.error(f"SFTP agent {agent_config['name']} credential mode '{mode}' is not supported")
+            return False
+
+        users = credential_policy.get('users', [])
+        if not users:
+            logger.error(f"SFTP agent {agent_config['name']} credential policy requires at least one user definition")
+            return False
+
+        for user in users:
+            username = user.get('username')
+            if not username:
+                logger.error(f"SFTP agent {agent_config['name']} has a user without a username")
+                return False
+
+            home_directory = user.get('home_directory')
+            if home_directory and (not os.path.isdir(home_directory) or not _directory_is_writable(home_directory)):
+                logger.error(
+                    f"SFTP agent {agent_config['name']} home_directory for user {username} is invalid or not writable"
+                )
+                return False
+
+            if mode == 'static':
+                if not user.get('password'):
+                    logger.error(f"SFTP agent {agent_config['name']} static user {username} missing password")
+                    return False
+            elif mode == 'public_key':
+                authorized_keys = user.get('authorized_keys', [])
+                if not authorized_keys:
+                    logger.error(f"SFTP agent {agent_config['name']} public_key user {username} missing authorized_keys")
+                    return False
+                if not _validate_authorized_keys(authorized_keys):
+                    return False
 
     return True
 

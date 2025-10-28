@@ -79,13 +79,31 @@ Configure AWS credentials to allow RLA to interact with AWS services such as SQS
 Define settings for each log collection agent.
 
 - **name**: Assign a unique name for each agent.
-- **type**: Define the type of log source. Currently, "sqs" is supported.
+- **type**: Define the type of log source. Supported values are `sqs`, `file`, and `sftp`.
 - **num_worker_threads**: Set the number of worker threads for processing messages.
-- **product**: Specify the product type associated with this agent. Currently supports 'cloud_waap'.
+- **product**: Specify the product type associated with this agent. Currently supports `cloud_waap`.
 - **sqs_settings**:
   - **queue_name**: The name of the SQS queue to poll for messages.
   - **delete_on_failure**: Determine whether to delete messages from the queue if processing fails (true/false).
+- **file_settings**:
+  - **root_path**: Directory that RLA will poll for new log files. The directory must already exist and be writable by the agent user.
+  - **polling_interval_seconds**: Frequency (in seconds) for scanning the directory for new files.
+  - **completion_strategy**: Determines how processed files are handled. Supported modes are `delete` and `archive`. When `archive` is selected, specify **archive_directory** where processed files will be moved.
+- **sftp_settings**:
+  - **listen**: Host and port where the embedded SFTP service listens for client connections.
+  - **host_keys**: List of private host key files (e.g., Ed25519 or RSA). All files must exist and remain readable by RLA.
+  - **drop_directory**: Root directory for uploaded files; ensure it is owned by the RLA service account and not world-writable.
+  - **credential_policy**: Controls how clients authenticate. Use `static` for username/password credentials or `public_key` for SSH public key authentication. Each user entry includes a **username** and either a **password** (`static`) or **authorized_keys** list (`public_key`). Optional **home_directory** overrides must point to writable directories.
 - **logs**: Enable or disable specific log types for processing, such as `Access`, `WAF`, `Bot`, `DDoS`, `WebDDoS`, and `CSP`.
+
+### Secure SFTP Guidance
+
+When exposing the built-in SFTP drop-zone, harden the deployment:
+
+- Generate dedicated host keys and store them with restrictive permissions owned by the RLA account.
+- Prefer the `public_key` credential policy with per-partner keys; if passwords are required, rotate them regularly and deliver through a secrets manager.
+- Place `drop_directory` on a filesystem with adequate quotas and ensure it is not world-writable. Create per-tenant subdirectories with appropriate ownership.
+- Use network controls (firewalls, security groups) to restrict inbound SFTP access to approved partners.
 
 ## Output Configuration
 
@@ -185,6 +203,40 @@ agents:
       DDoS: true
       WebDDoS: true
       CSP: false
+
+  - name: "local-files"
+    type: "file"
+    num_worker_threads: 2
+    product: "cloud_waap"
+    file_settings:
+      root_path: '/var/spool/rla/incoming'
+      polling_interval_seconds: 10
+      completion_strategy:
+        mode: 'archive'
+        archive_directory: '/var/spool/rla/archive'
+    logs:
+      Access: true
+
+  - name: "sftp-drop"
+    type: "sftp"
+    num_worker_threads: 2
+    product: "cloud_waap"
+    sftp_settings:
+      listen:
+        host: '0.0.0.0'
+        port: 2222
+      host_keys:
+        - '/etc/rla/ssh_host_ed25519_key'
+      drop_directory: '/var/spool/rla/sftp-drop'
+      credential_policy:
+        mode: 'public_key'
+        users:
+          - username: 'partner'
+            authorized_keys:
+              - '/etc/rla/partners/partner.pub'
+            home_directory: '/var/spool/rla/sftp-drop/partner'
+    logs:
+      Access: true
 
 output:
   output_format: 'json'  # Supports 'json', 'cef', 'leef'

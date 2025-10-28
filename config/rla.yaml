@@ -33,7 +33,7 @@ aws_credentials:
 # Configuration of individual agents for log collection. Each agent can be configured for different sources and products.
 agents:
   - name: "cloud"  # Unique name of the agent.
-    type: "sqs"  # Type of log source. Current options: "sqs".
+    type: "sqs"  # Type of log source. Options: "sqs", "file", "sftp".
     num_worker_threads: 5  # Number of worker threads for processing messages.
     product: "cloud_waap"  # The product type associated with this agent. Current options: "cloud_waap".
     sqs_settings:
@@ -46,6 +46,42 @@ agents:
       DDoS: true  # Enable or disable ingestion of 'DDoS' logs.
       WebDDoS: true  # Enable or disable ingestion of 'WebDDoS' logs.
       CSP: true  # Enable or disable ingestion of 'CSP' logs.
+
+  # Example: Local file system agent for processing dropped log files
+  # - name: "local-files"
+  #   type: "file"
+  #   num_worker_threads: 2
+  #   product: "cloud_waap"
+  #   file_settings:
+  #     root_path: "/var/spool/rla/incoming"  # Directory polled for new files
+  #     polling_interval_seconds: 10           # How frequently to scan the directory
+  #     completion_strategy:
+  #       mode: "archive"                     # Options: "archive", "delete"
+  #       archive_directory: "/var/spool/rla/archive"
+  #   logs:
+  #     Access: true
+  #     WAF: true
+
+  # Example: Embedded SFTP drop-zone for partners
+  # - name: "sftp-drop"
+  #   type: "sftp"
+  #   num_worker_threads: 2
+  #   product: "cloud_waap"
+  #   sftp_settings:
+  #     listen:
+  #       host: "0.0.0.0"
+  #       port: 2222
+  #     host_keys:
+  #       - "/etc/rla/ssh_host_ed25519_key"
+  #     drop_directory: "/var/spool/rla/sftp-drop"   # Ensure owned by the RLA user and not world-writable
+  #     credential_policy:
+  #       mode: "static"                              # Options: "static", "public_key"
+  #       users:
+  #         - username: "partner"
+  #           password: "change-me"                  # Rotate frequently; prefer secrets management.
+  #           home_directory: "/var/spool/rla/sftp-drop/partner"
+  #   logs:
+  #     Access: true
 
 # Output Configuration
 # --------------------
