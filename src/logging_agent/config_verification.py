@@ -1,5 +1,6 @@
 import os
 import boto3
+from collections.abc import Sequence
 from .logging_config import get_logger
 from .config_reader import Config
 from .app_info import supported_features
@@ -635,6 +636,31 @@ def verify_selected_output_config(output_config, formats_config):
         if severity_format not in allowed_severity_formats:
             logger.error(f"Invalid 'severity_format' for {output_format} format: {severity_format}. Allowed options are {allowed_severity_formats}.")
             return False
+
+    input_time_formats = format_options.get('input_time_formats', {})
+    if input_time_formats:
+        if not isinstance(input_time_formats, dict):
+            logger.error("'input_time_formats' must be a dictionary keyed by product name.")
+            return False
+        for product, product_formats in input_time_formats.items():
+            if not isinstance(product_formats, dict):
+                logger.error(f"'input_time_formats' for product '{product}' must be a dictionary keyed by log type.")
+                return False
+            for log_type, formats in product_formats.items():
+                if isinstance(formats, str):
+                    formats = [formats]
+                elif isinstance(formats, Sequence) and not isinstance(formats, (str, bytes)):
+                    formats = list(formats)
+                else:
+                    logger.error(
+                        f"Time formats for product '{product}', log type '{log_type}' must be a string or sequence of strings."
+                    )
+                    return False
+                if not all(isinstance(fmt, str) for fmt in formats):
+                    logger.error(
+                        f"All time format entries for product '{product}', log type '{log_type}' must be strings."
+                    )
+                    return False
 
     return True
 

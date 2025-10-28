@@ -1,4 +1,5 @@
 import re
+from collections.abc import Sequence
 from urllib.parse import urlparse
 
 from logging_agent.logging_config import get_logger
@@ -316,6 +317,42 @@ class CloudWAAPProcessor:
             return log
 
     @staticmethod
+    def _convert_to_epoch_ms(time_data, input_format):
+        """Convert the provided time data to epoch milliseconds based on the input format."""
+        if input_format in ['epoch_ms', 'epoch_ms_str', 'epoch_ms_int']:
+            time_string = str(time_data)
+            while len(time_string) < 13:
+                time_string += '0'
+            return int(time_string)
+        if input_format == 'ISO8601':
+            iso_string = str(time_data)
+            if iso_string.endswith('Z'):
+                iso_string = iso_string[:-1] + '+00:00'
+            return int(datetime.fromisoformat(iso_string).timestamp() * 1000)
+        if input_format == 'ISO8601_NS':
+            time_string = str(time_data)
+            base_time, ns = time_string[:-1].split('.')
+            parsed_time = datetime.strptime(base_time, '%Y-%m-%dT%H:%M:%S')
+            return int(parsed_time.timestamp() * 1000) + int(ns[:3])
+
+        parsed_time = datetime.strptime(str(time_data), input_format)
+        return int(parsed_time.timestamp() * 1000)
+
+    @staticmethod
+    def _format_epoch_ms(epoch_time_ms, output_format):
+        """Format epoch milliseconds into the requested output representation."""
+        if output_format in ['epoch_ms_str', 'epoch_ms_int']:
+            output = str(epoch_time_ms)
+            while len(output) < 13:
+                output += '0'
+            return output if output_format == 'epoch_ms_str' else int(output)
+        if output_format == 'MM dd yyyy HH:mm:ss':
+            return datetime.utcfromtimestamp(epoch_time_ms / 1000.0).strftime('%m %d %Y %H:%M:%S')
+        if output_format == 'ISO8601':
+            return datetime.utcfromtimestamp(epoch_time_ms / 1000.0).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+        return datetime.utcfromtimestamp(epoch_time_ms / 1000.0).strftime(output_format)
+
+    @staticmethod
     def transform_time(time_data, input_format='epoch_ms', output_format='epoch_ms_str'):
         """
         Transforms a time string from one format to another.
@@ -331,43 +368,60 @@ class CloudWAAPProcessor:
         Returns:
             str or int: The transformed time in the desired output format. Returns None in case of errors.
         """
-        try:
-            # Initialize variables for the epoch time in milliseconds
-            epoch_time_ms = 0
-            # Handle input time based on the input format
-            if input_format in ['epoch_ms', 'epoch_ms_str']:
-                time_string = str(time_data)
-                while len(time_string) < 13:
-                    time_string += '0'
-                epoch_time_ms = int(time_string)
-            elif input_format in ['%d/%b/%Y:%H:%M:%S %z', '%d/%b/%Y:%H:%M:%S.%f %z', "%d-%m-%Y %H:%M:%S",
-                                  '%b %d %Y %H:%M:%S', 'ISO8601', 'ISO8601_NS']:
-                if input_format == 'ISO8601_NS':
-                    base_time, ns = time_data[:-1].split('.')
-                    parsed_time = datetime.strptime(base_time, '%Y-%m-%dT%H:%M:%S')
-                    epoch_time_ms = int(parsed_time.timestamp() * 1000) + int(ns[:3])
-                else:
-                    parsed_time = datetime.strptime(time_data, input_format)
-                    epoch_time_ms = int(parsed_time.timestamp() * 1000)
-            else:
-                raise ValueError(f"Unsupported input format: {input_format}")
+        original_value = str(time_data)
+        formats_to_try = []
+        if isinstance(input_format, Sequence) and not isinstance(input_format, (str, bytes)):
+            formats_to_try.extend(list(input_format))
+        else:
+            formats_to_try.append(input_format)
 
-            # Transform to output format
-            if output_format == 'epoch_ms_str' or output_format == 'epoch_ms_int':
-                output = str(epoch_time_ms)
-                while len(output) < 13:
-                    output += '0'
-                return output if output_format == 'epoch_ms_str' else int(output)
+        last_exception = None
+        for fmt in formats_to_try:
+            try:
+                epoch_time_ms = CloudWAAPProcessor._convert_to_epoch_ms(time_data, fmt)
+                return CloudWAAPProcessor._format_epoch_ms(epoch_time_ms, output_format)
+            except Exception as e:
+                last_exception = e
+                logger.debug(f"Failed to transform time '{time_data}' using input format '{fmt}': {e}")
+                continue
 
-            elif output_format == 'MM dd yyyy HH:mm:ss':
-                return datetime.utcfromtimestamp(epoch_time_ms / 1000.0).strftime('%m %d %Y %H:%M:%S')
-            elif output_format == 'ISO8601':
-                return datetime.utcfromtimestamp(epoch_time_ms / 1000.0).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
-            else:
-                return datetime.utcfromtimestamp(epoch_time_ms / 1000.0).strftime(output_format)
-        except Exception as e:
-            logger.error(f"Error transforming time: {e}")
-            return None
+        if last_exception:
+            logger.error(f"Error transforming time '{time_data}' with formats {formats_to_try}: {last_exception}")
+        return original_value
+
+    @staticmethod
+    def get_candidate_time_formats(default_formats, format_options, product, log_type):
+        """Combine default time formats with additional operator-configured formats."""
+        if isinstance(default_formats, Sequence) and not isinstance(default_formats, (str, bytes)):
+            combined = list(default_formats)
+        else:
+            combined = [default_formats]
+
+        additional_formats = []
+        if isinstance(format_options, dict):
+            product_formats = format_options.get('input_time_formats', {}).get(product, {})
+            candidate_formats = product_formats.get(log_type)
+            if candidate_formats is None and isinstance(log_type, str):
+                for key, value in product_formats.items():
+                    if isinstance(key, str) and key.lower() == log_type.lower():
+                        candidate_formats = value
+                        break
+            if candidate_formats is None:
+                candidate_formats = []
+            if isinstance(candidate_formats, str):
+                additional_formats = [candidate_formats]
+            elif isinstance(candidate_formats, Sequence) and not isinstance(candidate_formats, (str, bytes)):
+                additional_formats = list(candidate_formats)
+            elif candidate_formats:
+                logger.error(
+                    f"Invalid additional time formats type for product '{product}', log type '{log_type}': {type(candidate_formats)}"
+                )
+
+        for fmt in additional_formats:
+            if fmt not in combined:
+                combined.append(fmt)
+
+        return combined
     @staticmethod
     def extract_metadata(key, product, log_type):
         """
