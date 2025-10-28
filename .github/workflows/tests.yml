@@ -14,6 +14,11 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Clean Python cache
+        run: |
+          find . -name "__pycache__" -type d -exec rm -rf {} +
+          find . -name "*.pyc" -delete
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
