@@ -104,6 +104,10 @@ When exposing the built-in SFTP drop-zone, harden the deployment:
 - Prefer the `public_key` credential policy with per-partner keys; if passwords are required, rotate them regularly and deliver through a secrets manager.
 - Place `drop_directory` on a filesystem with adequate quotas and ensure it is not world-writable. Create per-tenant subdirectories with appropriate ownership.
 - Use network controls (firewalls, security groups) to restrict inbound SFTP access to approved partners.
+- Run the agent as a service user that owns the `drop_directory` and archive targets. Remove write access for other system accounts and disable shell access for the service user.
+- Protect private host key files with `chmod 600` and restrict access to the service account only. Maintain a rotation schedule and monitor for unauthorized changes.
+- Store static passwords or authorized-key material in a secure secrets manager. Inject values at runtime via environment variables or orchestration tools so that plain-text credentials never live in the image or repository.
+- Enable OS-level auditing on the drop directory so upload attempts, failures, and clean-up actions are logged centrally.
 
 ## Output Configuration
 

@@ -1,0 +1,24 @@
+general:
+  log_file: /tmp/rla.log
+  output_directory: /tmp
+  log_directory: /tmp
+  logging_levels: INFO
+aws_credentials:
+  access_key_id: test
+  secret_access_key: test
+  region: us-east-1
+output:
+  type: tcp
+  destination: 127.0.0.1
+  port: 514
+  output_format: json
+  batch: false
+  compatibility_mode: none
+formats:
+  json: {}
+http: {}
+https: {}
+debug:
+  verify_destination_connectivity: false
+  config_verification: false
+agents: []
