@@ -45,6 +45,29 @@ agents:
       WebDDoS: ${AGENT_LOG_WEBDDOS:-true}  # Enable or disable ingestion of 'WebDDoS' logs. Default: true
       CSP: ${AGENT_LOG_CSP:-true}  # Enable or disable ingestion of 'CSP' logs. Default: true
 
+#  - name: '${SFTP_AGENT_NAME:-sftp-drop}'  # Optional embedded SFTP agent example
+#    type: 'sftp'
+#    num_worker_threads: ${SFTP_AGENT_THREADS:-3}
+#    product: '${SFTP_AGENT_PRODUCT:-cloud_waap}'
+#    sftp_settings:
+#      listen:
+#        host: '${SFTP_LISTEN_HOST:-0.0.0.0}'
+#        port: ${SFTP_LISTEN_PORT:-2222}
+#      host_keys:
+#        - '${SFTP_HOST_KEY_PATH:-/etc/rla/ssh_host_ed25519_key}'
+#      polling_interval_seconds: ${SFTP_POLLING_INTERVAL_SECONDS:-2}
+#      drop_directory: '${SFTP_DROP_DIRECTORY:-/var/spool/rla/sftp-drop}'
+#      completion_strategy:
+#        mode: '${SFTP_COMPLETION_MODE:-archive}'
+#        archive_directory: '${SFTP_ARCHIVE_DIRECTORY:-/var/spool/rla/sftp-archive}'
+#      credential_policy:
+#        mode: '${SFTP_CREDENTIAL_MODE:-public_key}'
+#        users:
+#          - username: '${SFTP_USER_NAME:-partner}'
+#            authorized_keys:
+#              - '${SFTP_USER_KEY_PATH:-/etc/rla/partners/partner.pub}'
+#            home_directory: '${SFTP_USER_HOME:-/var/spool/rla/sftp-drop/partner}'
+
 # Output Configuration
 # --------------------
 # Configures how logs are outputted after processing.
