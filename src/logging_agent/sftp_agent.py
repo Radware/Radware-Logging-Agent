@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import os
 from typing import Dict, List, Optional, TYPE_CHECKING
 
@@ -141,17 +142,49 @@ class SFTPAgent(FileQueueAgent):
         self._server = await asyncssh.listen(**server_kwargs)
         self.logger.info("SFTP server listening on port %s", self._server.get_port())
 
-        while not self.stop_event.is_set():
-            self._scan_for_files()
-            try:
-                await asyncio.wait_for(self._shutdown_event.wait(), timeout=self.polling_interval)
-                break
-            except asyncio.TimeoutError:
-                continue
+        scanner_task = asyncio.create_task(self._scanner_loop())
+
+        try:
+            await self._shutdown_event.wait()
+        finally:
+            self._shutdown_event.set()
+            with contextlib.suppress(asyncio.CancelledError):
+                await scanner_task
 
         if self._server:
             self._server.close()
             await self._server.wait_closed()
+
+    async def _scanner_loop(self) -> None:
+        """Repeatedly scan for new files without blocking the event loop."""
+
+        assert self._shutdown_event is not None
+
+        try:
+            while not self.stop_event.is_set() and not self._shutdown_event.is_set():
+                await asyncio.to_thread(self._scan_for_files)
+
+                if self.stop_event.is_set():
+                    if not self._shutdown_event.is_set():
+                        self._shutdown_event.set()
+                    break
+
+                if self.polling_interval <= 0:
+                    await asyncio.sleep(0)
+                    continue
+
+                try:
+                    await asyncio.wait_for(
+                        self._shutdown_event.wait(),
+                        timeout=self.polling_interval,
+                    )
+                except asyncio.TimeoutError:
+                    continue
+        except asyncio.CancelledError:
+            raise
+        finally:
+            # Perform one last scan to reduce the chance of missing files.
+            await asyncio.shield(asyncio.to_thread(self._scan_for_files))
 
     def stop(self) -> None:
         self.logger.info("Stopping SFTPAgent for %s", self.root_path)
@@ -234,6 +267,17 @@ class SFTPAgent(FileQueueAgent):
 
     def _handle_upload_complete(self, relative_path: str) -> None:
         try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            self._process_upload_complete(relative_path)
+        else:
+            task = loop.create_task(
+                asyncio.to_thread(self._process_upload_complete, relative_path)
+            )
+            task.add_done_callback(self._log_background_exception)
+
+    def _process_upload_complete(self, relative_path: str) -> None:
+        try:
             absolute_path = self._resolve_relative_path(relative_path)
         except ValueError as exc:
             self.logger.error("Rejected upload outside drop directory: %s", exc)
@@ -244,3 +288,9 @@ class SFTPAgent(FileQueueAgent):
             return
 
         self._queue_file(absolute_path)
+
+    def _log_background_exception(self, task: "asyncio.Task[object]") -> None:
+        try:
+            task.result()
+        except Exception:  # pragma: no cover - defensive logging
+            self.logger.exception("Background upload post-processing failed")
