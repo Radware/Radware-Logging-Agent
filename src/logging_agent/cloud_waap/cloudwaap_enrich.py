@@ -29,11 +29,16 @@ def enrich_access_log(event, format_options, output_format, metadata, log_type):
 
 
             output_time_format = format_options.get('time_format', "epoch_ms_str")
-            access_input_format = '%d/%b/%Y:%H:%M:%S.%f %z'
+            access_input_formats = CloudWAAPProcessor.get_candidate_time_formats(
+                '%d/%b/%Y:%H:%M:%S.%f %z',
+                format_options,
+                'cloud_waap',
+                log_type
+            )
             if 'time' in event:
                 event['time'] = CloudWAAPProcessor.transform_time(
                     event['time'],
-                    input_format=access_input_format,
+                    input_format=access_input_formats,
                     output_format=output_time_format
                 )
 
@@ -133,11 +138,16 @@ def enrich_waf_log(event, format_options, output_format, metadata, log_type):
 
             # Time transformation
             waf_output_format = format_options.get('time_format', "epoch_ms_str")
-            waf_input_format = 'epoch_ms'
+            waf_input_formats = CloudWAAPProcessor.get_candidate_time_formats(
+                'epoch_ms',
+                format_options,
+                'cloud_waap',
+                log_type
+            )
             if 'time' in event:
                 event['time'] = CloudWAAPProcessor.transform_time(
                     event['time'],
-                    input_format=waf_input_format,
+                    input_format=waf_input_formats,
                     output_format=waf_output_format
                 )
 
@@ -201,11 +211,16 @@ def enrich_bot_log(event, format_options, output_format, metadata, log_type):
         if format_option or output_format in ['cef', 'leef']:
             # Time transformation
             bot_output_format = format_options.get('time_format', "epoch_ms_str")
-            bot_input_format = 'epoch_ms'
+            bot_input_formats = CloudWAAPProcessor.get_candidate_time_formats(
+                'epoch_ms',
+                format_options,
+                'cloud_waap',
+                log_type
+            )
             if 'time' in event:
                 event['time'] = CloudWAAPProcessor.transform_time(
                     event['time'],
-                    input_format=bot_input_format,
+                    input_format=bot_input_formats,
                     output_format=bot_output_format
                 )
 
@@ -287,11 +302,16 @@ def enrich_ddos_log(event, format_options, output_format, metadata, log_type):
 
             # Transform time field based on format options
             output_time_format = format_options.get('time_format', "epoch_ms_str")
-            ddos_input_format = "%d-%m-%Y %H:%M:%S"
+            ddos_input_formats = CloudWAAPProcessor.get_candidate_time_formats(
+                "%d-%m-%Y %H:%M:%S",
+                format_options,
+                'cloud_waap',
+                log_type
+            )
             if 'time' in event:
                 event['time'] = CloudWAAPProcessor.transform_time(
                     event['time'],
-                    input_format=ddos_input_format,
+                    input_format=ddos_input_formats,
                     output_format=output_time_format
                 )
 
@@ -341,20 +361,31 @@ def enrich_webddos_log(event, format_options, output_format, metadata, log_type)
 
             # Transform various time fields based on format options
             time_fields = {'startTime': 'startTime', 'endTime': 'endTime'}
+            epoch_input_formats = CloudWAAPProcessor.get_candidate_time_formats(
+                'epoch_ms',
+                format_options,
+                'cloud_waap',
+                log_type
+            )
             for original_field, new_field in time_fields.items():
                 if original_field in event:
-                    input_format = 'epoch_ms'
                     event[new_field] = CloudWAAPProcessor.transform_time(
                         event[original_field],
-                        input_format=input_format,
+                        input_format=epoch_input_formats,
                         output_format=format_options.get('time_format', "epoch_ms_str")
                     )
 
             # Transform and remove 'currentTimestamp' after processing
             if 'currentTimestamp' in event:
+                iso_input_formats = CloudWAAPProcessor.get_candidate_time_formats(
+                    'ISO8601_NS',
+                    format_options,
+                    'cloud_waap',
+                    log_type
+                )
                 event['time'] = CloudWAAPProcessor.transform_time(
                     event['currentTimestamp'],
-                    input_format='ISO8601_NS',
+                    input_format=iso_input_formats,
                     output_format=format_options.get('time_format', "epoch_ms_str")
                 )
                 del event['currentTimestamp']  # Explicitly remove 'currentTimestamp' after it's processed
@@ -442,11 +473,17 @@ def enrich_csp_log(event, format_options, output_format, metadata, log_type):
             if 'target_module' in event:
                 event['targetModule'] = event.pop('target_module')
             output_time_format = format_options.get('time_format', "epoch_ms_str")
+            csp_input_formats = CloudWAAPProcessor.get_candidate_time_formats(
+                "epoch_ms_str",
+                format_options,
+                'cloud_waap',
+                log_type
+            )
             if 'time' in event:
                 if event['time']:
                     event['time'] = CloudWAAPProcessor.transform_time(
                         event['time'],
-                        input_format="epoch_ms_str",
+                        input_format=csp_input_formats,
                         output_format=output_time_format
                     )
                 else:

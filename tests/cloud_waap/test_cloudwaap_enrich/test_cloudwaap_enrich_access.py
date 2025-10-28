@@ -51,7 +51,7 @@ def test_enrich_access_log_with_different_formats(unify_fields, output_format):
         assert 'referrer' not in enriched_event or enriched_event['referrer'] != "-"
         assert 'country_code' not in enriched_event or enriched_event['country_code'] not in {"", "--"}
     if output_format == 'json':
-        assert 'log_type' in enriched_event
+        assert 'logType' in enriched_event
 
 # Mocking External Dependencies with Unexpected Returns
 @patch('logging_agent.cloud_waap.cloudwaap_enrich.CloudWAAPProcessor.transform_time', return_value=None)
@@ -84,8 +84,8 @@ def test_enrich_access_log_unify_fields_false_json(output_format):
     enriched_event = enrich_access_log(SAMPLE_ACCESS_EVENT.copy(), format_options, output_format, SAMPLE_ACCESS_METADATA, 'access')
 
     # Assertions
-    # Check if the only change is the addition of the log_type field
-    assert enriched_event.get('log_type') == 'access'
+    # Check if the only change is the addition of the logType field
+    assert enriched_event.get('logType') == 'Access'
     for key in SAMPLE_ACCESS_EVENT:
         if key != 'log_type':
             assert enriched_event.get(key) == SAMPLE_ACCESS_EVENT.get(key)
@@ -97,8 +97,8 @@ def test_enrich_access_log_malformed_source_ip():
     event["source_ip"] = "31.22.%123.<script>21"
     enriched_event = enrich_access_log(event, {'unify_fields': True, 'time_format': 'epoch_ms_str'}, 'json', {}, 'access')
 
-    assert enriched_event.get('source_ip') == "31.22.%123.<script>21"
-    assert 'log_type' in enriched_event  # As log_type should still be added
+    assert enriched_event.get('sourceIp') == "31.22.%123.<script>21"
+    assert 'logType' in enriched_event  # As logType should still be added
 
 
 # Test with Incorrect Time Format
@@ -108,8 +108,26 @@ def test_enrich_access_log_incorrect_time_format():
     enriched_event = enrich_access_log(event, {'unify_fields': True, 'time_format': 'epoch_ms_str'}, 'json', {},
                                        'access')
 
-    # Updated assertion based on the assumption that transform_time returns None for invalid format
-    assert enriched_event.get('time') is None
+    # Updated assertion: transform_time now returns the original value when no format matches
+    assert enriched_event.get('time') == "not-a-real-time"
+
+
+def test_enrich_access_log_additional_time_formats_configured():
+    event = SAMPLE_ACCESS_EVENT.copy()
+    event["time"] = "23/Jan/2024:00:06:00 +0000"
+    format_options = {
+        'unify_fields': True,
+        'time_format': 'ISO8601',
+        'input_time_formats': {
+            'cloud_waap': {
+                'Access': ['%d/%b/%Y:%H:%M:%S %z']
+            }
+        }
+    }
+
+    enriched_event = enrich_access_log(event, format_options, 'json', SAMPLE_ACCESS_METADATA, 'Access')
+
+    assert enriched_event.get('time') == '2024-01-23T00:06:00.000Z'
 # Test with Malformed `request`
 def test_enrich_access_log_malformed_request():
     event = SAMPLE_ACCESS_EVENT.copy()

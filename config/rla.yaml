@@ -176,6 +176,10 @@ formats:
   json:
     time_format: "ISO8601"  # Time format for JSON logs
     unify_fields: true
+    input_time_formats:
+      cloud_waap:
+        Access:
+          - "%d/%b/%Y:%H:%M:%S %z"  # Additional pattern without fractional seconds
   # Uncomment below sections as needed for other formats
 #  cef:
 #    delimiter: "\n"  # Delimiter used to separate CEF events
