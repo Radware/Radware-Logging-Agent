@@ -8,6 +8,8 @@ from datetime import datetime
 # Create a logger for this module
 logger = get_logger('cloudwaap_log_utils')
 
+DEFAULT_PREFIX = "rdwrCld"
+
 class CloudWAAPProcessor:
     """
     CloudWAAPProcessor provides a collection of static methods designed to process
@@ -578,3 +580,114 @@ class CloudWAAPProcessor:
                 logger.error(f"Warning: Field '{old_key}' not found in event data")
 
         return event
+    @staticmethod
+    def _to_camel_case(key):
+        if not key:
+            return key
+        if not isinstance(key, str):
+            return key
+
+        if not re.search(r"[-_\s]", key):
+            return key
+
+        parts = [part for part in re.split(r"[^0-9A-Za-z]+", key) if part]
+        if not parts:
+            return key
+
+        first, *rest = parts
+        camel_key = first.lower() + ''.join(word.capitalize() for word in rest)
+        return camel_key
+
+    @staticmethod
+    def _to_prefixed_title_case(key, prefix):
+        if not key:
+            return key
+        if not isinstance(key, str):
+            return key
+
+        prefix = prefix or ""
+
+        if prefix and key.startswith(prefix):
+            remainder = key[len(prefix):]
+            if remainder and remainder[0].isupper():
+                return key
+
+        parts = [part for part in re.split(r"[^0-9A-Za-z]+", key) if part]
+        if not parts:
+            return prefix + key if prefix else key
+
+        title_key = ''.join(part.capitalize() for part in parts)
+        if not title_key and prefix:
+            return prefix
+        if not title_key:
+            return key
+
+        return f"{prefix}{title_key}" if prefix else title_key
+
+    @staticmethod
+    def _normalize_structure(value, style, prefix):
+        if isinstance(value, dict):
+            normalized = {}
+            for key, sub_value in value.items():
+                normalized_key = CloudWAAPProcessor._normalize_key(key, style, prefix)
+                normalized[normalized_key] = CloudWAAPProcessor._normalize_structure(sub_value, style, prefix)
+            return normalized
+        if isinstance(value, list):
+            return [CloudWAAPProcessor._normalize_structure(item, style, prefix) for item in value]
+        if isinstance(value, tuple):
+            return tuple(CloudWAAPProcessor._normalize_structure(item, style, prefix) for item in value)
+        return value
+
+    @staticmethod
+    def _normalize_key(key, style, prefix):
+        if not isinstance(key, str):
+            return key
+
+        key = key.strip()
+        if not key:
+            return key
+
+        if style == 'camel':
+            return CloudWAAPProcessor._to_camel_case(key)
+        if style == 'prefixed_title':
+            return CloudWAAPProcessor._to_prefixed_title_case(key, prefix)
+        return key
+
+    @staticmethod
+    def _resolve_prefix(field_mappings, product, log_type, output_format):
+        try:
+            product_mappings = field_mappings.get(product, {}) if isinstance(field_mappings, dict) else {}
+            prefix = product_mappings.get(log_type, {}).get(output_format, {}).get('prefix', '')
+            if prefix:
+                return prefix
+            for mapping in product_mappings.values():
+                candidate = mapping.get(output_format, {}).get('prefix')
+                if candidate:
+                    return candidate
+        except Exception as exc:
+            logger.debug(f"Unable to resolve prefix for {product}/{log_type}: {exc}")
+        return DEFAULT_PREFIX
+
+    @staticmethod
+    def normalize_event_fields(event, output_format, field_mappings, log_type, product, compatibility_mode=None):
+        try:
+            if not isinstance(event, dict):
+                return event
+
+            style = 'camel'
+            prefix = ''
+            if output_format in {'cef', 'leef'}:
+                style = 'prefixed_title'
+                prefix = CloudWAAPProcessor._resolve_prefix(field_mappings, product, log_type, output_format)
+
+            normalized_event = CloudWAAPProcessor._normalize_structure(event, style, prefix)
+
+            normalized_event.setdefault('logType', log_type or 'Unknown')
+            if product == 'cloud_waap' and output_format == 'json':
+                normalized_event.setdefault('product', 'Cloud WAAP')
+
+            return normalized_event
+        except Exception as exc:
+            logger.error(f"Error normalizing event fields for {product}/{log_type}: {exc}")
+            return event
+
