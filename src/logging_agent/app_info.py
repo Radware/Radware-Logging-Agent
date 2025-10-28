@@ -9,6 +9,9 @@ supported_features = {
         },
         "supported_conversions": ['cef', 'leef', "json"],
         "supported_log_types": ['CSP', "Access", "WAF", "Bot", "DDoS", "WebDDoS"],
+        "log_configuration": {
+            "unknown_option": "unknown"
+        },
         "supported_input_type": ['sqs', 'file', 'sftp'],
         "input_type_requirements": {
             "file": {

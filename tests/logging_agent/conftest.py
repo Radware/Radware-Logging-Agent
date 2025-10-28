@@ -31,7 +31,8 @@ def config():
             'delete_on_failure': True
         },
         "logs": {
-            "Access": True
+            "Access": True,
+            "unknown": False
         }
     }
 
@@ -135,7 +136,8 @@ def config_fixture():
             'delete_on_failure': True
         },
         "logs": {
-            "Access": True
+            "Access": True,
+            "unknown": False
         },
         "tcp": {
             "batch": False

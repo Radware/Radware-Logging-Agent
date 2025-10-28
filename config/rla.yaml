@@ -46,6 +46,7 @@ agents:
       DDoS: true  # Enable or disable ingestion of 'DDoS' logs.
       WebDDoS: true  # Enable or disable ingestion of 'WebDDoS' logs.
       CSP: true  # Enable or disable ingestion of 'CSP' logs.
+      unknown: false  # Enable processing for logs whose type is not yet recognized.
 
   # Example: Local file system agent for processing dropped log files
   # - name: "local-files"

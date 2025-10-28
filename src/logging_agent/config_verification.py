@@ -392,10 +392,14 @@ def verify_agent_config(agent_config):
 
     # Verify log types for the agent
     supported_log_types = supported_features[product]['supported_log_types']
+    log_configuration = supported_features[product].get('log_configuration', {})
+    unknown_option = log_configuration.get('unknown_option')
     for log_type, enabled in agent_config.get('logs', {}).items():
         if not isinstance(enabled, bool):
             logger.error(f"Invalid value for log type '{log_type}' in agent {agent_config['name']}. Should be a boolean.")
             return False
+        if unknown_option and log_type == unknown_option:
+            continue
         if log_type not in supported_log_types:
             logger.error(f"Unsupported log type: {log_type} for product: {product} in agent {agent_config['name']}")
             return False

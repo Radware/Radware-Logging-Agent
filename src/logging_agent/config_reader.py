@@ -268,6 +268,15 @@ class Config:
         agent_type = (agent.get('type') or '').lower()
         product = agent.get('product')
 
+        logs = agent.get('logs') or {}
+        if not isinstance(logs, dict):
+            logs = {}
+        log_configuration = supported_features.get(product or 'cloud_waap', {}).get('log_configuration', {})
+        unknown_option = log_configuration.get('unknown_option')
+        if unknown_option and unknown_option not in logs:
+            logs[unknown_option] = False
+        agent['logs'] = logs
+
         if agent_type == 'file':
             file_settings = agent.get('file_settings', {}) or {}
             root_path = file_settings.get('root_path')
