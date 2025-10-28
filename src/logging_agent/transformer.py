@@ -94,6 +94,17 @@ class Transformer:
             # Default to the original event if no specific processing is required
             self.logger.debug(f"No specific enrichment for log type: {log_type} in product: {self.product}")
             enriched_event = event
+            options = format_options or {}
+            unify_fields = options.get('unify_fields', True)
+            if unify_fields and self.product == 'cloud_waap':
+                enriched_event = CloudWAAPProcessor.normalize_event_fields(
+                    event,
+                    self.output_format,
+                    self.field_mappings,
+                    log_type or 'Unknown',
+                    self.product,
+                    self.compatibility_mode
+                )
 
         return enriched_event
 
