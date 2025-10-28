@@ -65,7 +65,7 @@ class FileQueueAgent:
                 entry = self.processing_queue.get(timeout=1)
             except queue.Empty:
                 if self.stop_event.is_set():
-                    continue
+                    break
                 continue
 
             if entry is None:
