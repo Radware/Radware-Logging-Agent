@@ -75,8 +75,11 @@ http:
     # password: '${HTTP_BASIC_PASSWORD}'       # Password for Basic authentication. Default: "".
     # token: '${HTTP_BEARER_TOKEN}'            # Token for Bearer authentication. Default: "".
 
-  # Custom headers to include in the HTTP request. Specify as key-value pairs.
-  # Uncomment to add specific headers as needed.
+  # Custom headers to include in the HTTP request. These can be injected dynamically
+  # by exporting environment variables such as HTTP_AUTHORIZATION_HEADER,
+  # HTTP_HEADER_X_CUSTOM_HEADER, or a semicolon-separated HTTP_CUSTOM_HEADERS list.
+  # When these variables are provided, the Docker entrypoint will populate the
+  # custom_headers section automatically.
   # custom_headers:
   #   Authorization: '${HTTP_AUTHORIZATION_HEADER}'
 
@@ -94,7 +97,9 @@ https:
     # password: '${HTTPS_BASIC_PASSWORD}'       # Required for "basic" auth_type. Default: "".
     # token: '${HTTPS_BEARER_TOKEN}'           # Required for "bearer" auth_type. Default: ""
 
-  # Custom headers for HTTPS requests. Uncomment to add specific headers as needed.
+  # Custom headers for HTTPS requests. Use HTTPS_AUTHORIZATION_HEADER, HTTPS_HEADER_X_CUSTOM_HEADER,
+  # or HTTPS_CUSTOM_HEADERS (semicolon-separated key=value pairs) to have the Docker entrypoint
+  # generate this section dynamically at runtime.
   #custom_headers:
   #  Authorization: ${HTTPS_AUTHORIZATION_HEADER}
 
