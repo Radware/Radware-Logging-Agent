@@ -9,6 +9,11 @@ import ssl
 import requests
 import certifi
 
+try:  # pragma: no cover - optional dependency
+    import asyncssh
+except ImportError:  # pragma: no cover - optional dependency
+    asyncssh = None
+
 logger = get_logger('config_verification')
 
 
@@ -18,8 +23,25 @@ def _directory_is_writable(path):
 
 def _validate_authorized_keys(key_paths):
     for key_path in key_paths:
-        if not os.path.isfile(key_path):
-            logger.error(f"Authorized key file not found: {key_path}")
+        if os.path.isfile(key_path):
+            continue
+
+        candidate = str(key_path).strip()
+        if not candidate:
+            logger.error("Authorized key entry is empty")
+            return False
+
+        if asyncssh is not None:
+            try:
+                asyncssh.import_public_key(candidate)
+                continue
+            except Exception:
+                logger.error(f"Authorized key entry is neither a readable file nor a valid SSH public key: {key_path}")
+                return False
+
+        allowed_prefixes = ("ssh-", "ecdsa-sha2-", "sk-ssh-ed25519@", "sk-ssh-rsa@", "rsa-sha2-")
+        if not candidate.startswith(allowed_prefixes):
+            logger.error(f"Authorized key entry is neither a readable file nor a valid SSH public key: {key_path}")
             return False
     return True
 

@@ -264,6 +264,31 @@ class Config:
             elif isinstance(existing_value, dict) and isinstance(default_value, dict):
                 self._apply_format_defaults(existing_value, default_value)
 
+    def _normalize_authorized_key_entry(self, entry):
+        """
+        Normalize a single authorized_keys entry. Supports both filesystem paths and inline keys.
+
+        When the entry looks like an SSH public key (for example begins with ``ssh-`` or ``ecdsa-``),
+        it is returned as-is (trimmed). Otherwise we assume it is a path and normalize accordingly.
+        """
+        if isinstance(entry, dict):
+            path_value = entry.get('path')
+            inline_value = entry.get('key') or entry.get('inline')
+            if inline_value:
+                return str(inline_value).strip()
+            if path_value:
+                return str(self.normalize_path(str(path_value)))
+            entry = entry.get('value', '')
+
+        entry_str = str(entry).strip()
+        key_prefixes = (
+            "ssh-", "ecdsa-sha2-", "sk-ssh-ed25519@", "sk-ssh-rsa@", "rsa-sha2-",
+        )
+        if entry_str.startswith(key_prefixes):
+            return entry_str
+
+        return str(self.normalize_path(entry_str))
+
     def _normalize_agent(self, agent):
         agent_type = (agent.get('type') or '').lower()
         product = agent.get('product')
@@ -373,7 +398,9 @@ class Config:
                     authorized_keys = [authorized_keys]
                 if authorized_keys:
                     normalized_user['authorized_keys'] = [
-                        str(self.normalize_path(str(key_path))) for key_path in authorized_keys if key_path
+                        self._normalize_authorized_key_entry(key_entry)
+                        for key_entry in authorized_keys
+                        if key_entry
                     ]
 
                 normalized_users.append(normalized_user)

@@ -229,9 +229,15 @@ class Sender:
             logger.debug(f"Connected to {destination}:{port} over TLS")
 
             if batch_mode:
-                # If batch mode, send all data as one concatenated string
-                batch_data = delimiter.join(data)
-                tls_sock.sendall(batch_data.encode('utf-8'))
+                if isinstance(data, (bytes, bytearray)):
+                    payload = bytes(data)
+                else:
+                    if isinstance(data, str):
+                        payload = data
+                    else:
+                        payload = delimiter.join(str(event) for event in data)
+                    payload = payload.encode('utf-8')
+                tls_sock.sendall(payload)
             else:
                 # If not batch mode, iterate through each event and send individually
                 for event in data:

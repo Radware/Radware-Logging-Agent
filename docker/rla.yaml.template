@@ -65,7 +65,8 @@ agents:
 #        users:
 #          - username: '${SFTP_USER_NAME:-partner}'
 #            authorized_keys:
-#              - '${SFTP_USER_KEY_PATH:-/etc/rla/partners/partner.pub}'
+#              - '${SFTP_USER_KEY_PATH:-/etc/rla/partners/partner.pub}'   # Existing OpenSSH authorized_keys format file
+#              # - 'ssh-ed25519 AAAAC3Nz...'                              # Alternatively provide an inline public key
 #            home_directory: '${SFTP_USER_HOME:-/var/spool/rla/sftp-drop/partner}'
 
 # Output Configuration

@@ -104,17 +104,51 @@ class SFTPAgent(FileQueueAgent):
                 username = user.get("username")
                 if not username:
                     continue
-                keys = []
+                keys: List["asyncssh_module.SSHKey"] = []
                 for entry in user.get("authorized_keys", []):
-                    try:
-                        keys.append(asyncssh.import_public_key(entry))
-                    except Exception as exc:  # pragma: no cover - defensive logging
-                        self.logger.error("Invalid authorized key for %s: %s", username, exc)
+                    keys.extend(self._import_authorized_keys(entry, username))
                 if keys:
                     key_map[username] = keys
             self._public_keys = key_map
         else:
             raise ValueError(f"Unsupported credential mode: {self.credential_mode}")
+
+    def _import_authorized_keys(self, entry: str, username: str) -> List["asyncssh_module.SSHKey"]:
+        """
+        Expand a single authorized_keys entry into zero or more AsyncSSH key objects.
+
+        Entries support either a filesystem path (pointing to an OpenSSH authorized_keys style file)
+        or a literal public key string.
+        """
+        normalized_entry = os.path.expanduser(str(entry).strip())
+        key_material: List[str] = []
+
+        if os.path.isfile(normalized_entry):
+            try:
+                with open(normalized_entry, "r", encoding="utf-8") as handle:
+                    for line in handle:
+                        stripped = line.strip()
+                        if not stripped or stripped.startswith("#"):
+                            continue
+                        key_material.append(stripped)
+            except OSError as exc:  # pragma: no cover - defensive logging
+                self.logger.error(
+                    "Failed to read authorized_keys file %s for user %s: %s",
+                    normalized_entry,
+                    username,
+                    exc,
+                )
+        else:
+            if normalized_entry:
+                key_material.append(normalized_entry)
+
+        imported: List["asyncssh_module.SSHKey"] = []
+        for key_text in key_material:
+            try:
+                imported.append(asyncssh.import_public_key(key_text))
+            except Exception as exc:  # pragma: no cover - defensive logging
+                self.logger.error("Invalid authorized key for %s: %s", username, exc)
+        return imported
 
     def start(self) -> None:
         self.logger.info("Starting SFTPAgent on %s:%s", self.listen_host or "0.0.0.0", self.listen_port)

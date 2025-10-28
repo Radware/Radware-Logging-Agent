@@ -96,3 +96,66 @@ def test_sftp_agent_upload_callback(sftp_agent_config: dict[str, object]) -> Non
     agent.data_processor.process_data.assert_called_once()
     assert not target_file.exists()
 
+
+def test_sftp_agent_accepts_inline_authorized_key(tmp_path: Path) -> None:
+    pytest.importorskip("asyncssh")
+    assert SFTPAgent is not None
+
+    host_key = tmp_path / "ssh_host_key"
+    host_key.write_text("dummy")
+
+    import asyncssh  # Imported lazily to keep optional dependency handling consistent
+    inline_key = asyncssh.generate_private_key("ssh-ed25519").export_public_key().decode()
+
+    config = {
+        "name": "sftp-inline",
+        "type": "sftp",
+        "num_worker_threads": 1,
+        "sftp_settings": {
+            "listen": {"host": "127.0.0.1", "port": 0},
+            "host_keys": [str(host_key)],
+            "drop_directory": str(tmp_path),
+            "credential_policy": {
+                "mode": "public_key",
+                "users": [{"username": "upload", "authorized_keys": [inline_key]}],
+            },
+        },
+    }
+
+    agent = SFTPAgent(config)
+    assert "upload" in agent._public_keys
+    assert len(agent._public_keys["upload"]) == 1
+
+
+def test_sftp_agent_reads_authorized_key_file(tmp_path: Path) -> None:
+    pytest.importorskip("asyncssh")
+    assert SFTPAgent is not None
+
+    host_key = tmp_path / "ssh_host_key"
+    host_key.write_text("dummy")
+
+    import asyncssh
+    key_one = asyncssh.generate_private_key("ssh-ed25519").export_public_key().decode()
+    key_two = asyncssh.generate_private_key("ssh-ed25519").export_public_key().decode()
+
+    authorized_keys_file = tmp_path / "authorized_keys"
+    authorized_keys_file.write_text(f"{key_one}\n# comment line\n\n{key_two}\n")
+
+    config = {
+        "name": "sftp-inline",
+        "type": "sftp",
+        "num_worker_threads": 1,
+        "sftp_settings": {
+            "listen": {"host": "127.0.0.1", "port": 0},
+            "host_keys": [str(host_key)],
+            "drop_directory": str(tmp_path),
+            "credential_policy": {
+                "mode": "public_key",
+                "users": [{"username": "upload", "authorized_keys": [str(authorized_keys_file)]}],
+            },
+        },
+    }
+
+    agent = SFTPAgent(config)
+    assert "upload" in agent._public_keys
+    assert len(agent._public_keys["upload"]) == 2

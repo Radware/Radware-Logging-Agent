@@ -139,6 +139,46 @@ def test_verify_agent_config_accepts_sftp_agent_public_key(tmp_path):
     assert config_verification.verify_agent_config(agent_config)
 
 
+def test_verify_agent_config_accepts_inline_authorized_key(tmp_path):
+    pytest.importorskip("asyncssh")
+    import asyncssh  # type: ignore
+
+    drop_directory = tmp_path / "drop"
+    host_key = tmp_path / "ssh_host_ed25519_key"
+    user_home = drop_directory / "partner"
+
+    drop_directory.mkdir()
+    user_home.mkdir()
+    host_key.write_text("dummy")
+
+    inline_key = asyncssh.generate_private_key("ssh-ed25519").export_public_key().decode().strip()
+
+    agent_config = {
+        'name': 'sftp-agent-inline',
+        'type': 'sftp',
+        'product': 'cloud_waap',
+        'logs': {'Access': True},
+        'output': _base_output(),
+        'sftp_settings': {
+            'listen': {'host': '0.0.0.0', 'port': 2222},
+            'host_keys': [str(host_key)],
+            'drop_directory': str(drop_directory),
+            'credential_policy': {
+                'mode': 'public_key',
+                'users': [
+                    {
+                        'username': 'partner',
+                        'authorized_keys': [inline_key],
+                        'home_directory': str(user_home),
+                    }
+                ],
+            },
+        }
+    }
+
+    assert config_verification.verify_agent_config(agent_config)
+
+
 def test_verify_agent_config_rejects_sftp_agent_missing_password(tmp_path):
     drop_directory = tmp_path / "drop"
     host_key = tmp_path / "ssh_host_ed25519_key"

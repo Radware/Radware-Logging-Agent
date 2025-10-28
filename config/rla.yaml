@@ -85,6 +85,10 @@ agents:
   #         - username: "partner"
   #           password: "change-me"                  # Rotate frequently; prefer secrets management.
   #           home_directory: "/var/spool/rla/sftp-drop/partner"
+  #           # For public_key mode use either:
+  #           # authorized_keys:
+  #           #   - "/etc/rla/partners/partner.pub"   # Path to an OpenSSH authorized_keys-formatted file
+  #           #   - "ssh-ed25519 AAAAC3Nz..."         # or a literal public key string
   #   logs:
   #     Access: true
 

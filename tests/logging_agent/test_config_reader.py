@@ -183,3 +183,44 @@ def test_transform_single_agent_structure(tmp_path, config_instance):
     assert transformed["logs"]["Access"] is True
     assert transformed["sqs_settings"]["queue_name"] == "queue-name"
     assert transformed["sqs_settings"]["delete_on_failure"] is False
+
+
+def test_normalize_inline_authorized_key(tmp_path, monkeypatch, config_instance):
+    host_key = tmp_path / "ssh_host_ed25519_key"
+    host_key.write_text("key")
+
+    pytest.importorskip("asyncssh")
+    import asyncssh  # type: ignore
+
+    inline_key = asyncssh.generate_private_key("ssh-ed25519").export_public_key().decode().strip()
+
+    config_file = write_config(
+        tmp_path,
+        f"""
+        general: {{}}
+        aws_credentials: {{}}
+        output:
+          type: tcp
+          destination: localhost
+          output_format: json
+        formats: {{}}
+        agents:
+          - name: sftp-agent
+            type: sftp
+            product: cloud_waap
+            logs: {{}}
+            sftp_settings:
+              host_keys:
+                - {host_key}
+              credential_policy:
+                users:
+                  - username: partner
+                    authorized_keys:
+                      - "{inline_key}"
+        """
+    )
+
+    config_instance.load_config(str(config_file))
+    agent = config_instance.config["agents"]["sftp-agent"]
+    user = agent["sftp_settings"]["credential_policy"]["users"][0]
+    assert user["authorized_keys"] == [inline_key]
