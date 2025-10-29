@@ -1,3 +1,9 @@
+general:
+  log_file: "/var/log/rla/agent.log"
+  output_directory: "/var/spool/rla/tmp"
+  log_directory: "/var/log/rla"
+  logging_levels: "INFO"
+
 aws_credentials:
   access_key_id: "AKIA...REPLACE"
   secret_access_key: "REPLACE_ME"

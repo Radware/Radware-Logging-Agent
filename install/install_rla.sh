@@ -250,6 +250,25 @@ deploy_config() {
     chmod 640 "$dest_config"
 }
 
+link_config_into_src() {
+    local src_link="$APP_DIR/src/rla.yaml"
+    local root_config="$APP_DIR/rla.yaml"
+
+    if [[ ! -f "$root_config" && -f "$src_link" ]]; then
+        log "Root configuration file ${root_config} missing; leaving existing ${src_link} in place."
+        return
+    fi
+
+    if [[ -e "$src_link" && ! -L "$src_link" ]]; then
+        local backup="${src_link}.dist"
+        log "Backing up existing ${src_link} to ${backup}"
+        mv "$src_link" "$backup"
+    fi
+
+    ln -sfn ../rla.yaml "$src_link"
+    chown -h "$SERVICE_USER":"$SERVICE_GROUP" "$src_link"
+}
+
 setup_directories() {
     mkdir -p "$APP_DIR" "/var/log/rla"
     chown -R "$SERVICE_USER":"$SERVICE_GROUP" "$APP_DIR"
@@ -296,7 +315,7 @@ setup_systemd_service() {
         log "Skipping systemd service installation (--no-service)."
         cat <<EOF
 To start the agent manually:
-  sudo -u ${SERVICE_USER} ${VENV_DIR}/bin/python ${APP_DIR}/radware_logging_agent.py
+  sudo -u ${SERVICE_USER} ${VENV_DIR}/bin/python ${APP_DIR}/src/radware_logging_agent.py
 
 Recommended systemd service file (place in /etc/systemd/system/${SERVICE_UNIT}):
 [Unit]
@@ -307,7 +326,7 @@ After=network.target
 User=${SERVICE_USER}
 Group=${SERVICE_GROUP}
 WorkingDirectory=${APP_DIR}
-ExecStart=${VENV_DIR}/bin/python ${APP_DIR}/radware_logging_agent.py
+ExecStart=${VENV_DIR}/bin/python ${APP_DIR}/src/radware_logging_agent.py
 Restart=on-failure
 
 [Install]
@@ -330,7 +349,7 @@ After=network.target
 User=${SERVICE_USER}
 Group=${SERVICE_GROUP}
 WorkingDirectory=${APP_DIR}
-ExecStart=${VENV_DIR}/bin/python ${APP_DIR}/radware_logging_agent.py
+ExecStart=${VENV_DIR}/bin/python ${APP_DIR}/src/radware_logging_agent.py
 Restart=on-failure
 
 [Install]
@@ -359,7 +378,7 @@ Manage the service with:
   sudo systemctl restart ${SERVICE_UNIT}
 
 Configuration file:
-  ${APP_DIR}/rla.yaml
+  ${APP_DIR}/rla.yaml (linked at ${APP_DIR}/src/rla.yaml)
 
 Logs:
   /var/log/rla/
@@ -375,6 +394,7 @@ main() {
     confirm_overwrite_config
     sync_files
     deploy_config
+    link_config_into_src
     setup_directories
     setup_virtualenv
     setup_logrotate

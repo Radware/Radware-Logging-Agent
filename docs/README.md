@@ -16,6 +16,7 @@ RLA is a log processing tool designed to streamline the integration of Radware p
 - Published curated configuration snippets (see `config/examples/`) for common topologies, including a file agent streaming to Splunk HEC compatibility mode, SQS-to-CEF forwarding, and embedded SFTP drop-zones.
 - Expanded operator documentation with troubleshooting guidance for the new detection flow and direct links to the scenario-driven configuration files.
 - Reworked the installer script to add non-interactive and custom directory support, broader distro detection, and one-command provisioning of the service user, virtualenv, and systemd unit.
+- Added a fully featured uninstaller with confirmation options and selective preservation of app, logs, or service accounts.
 
 ### Version 1.4.0 - 18/11/2024
 
@@ -99,6 +100,9 @@ Minimal, scenario-focused configuration files are available in `config/examples/
 - `sqs_tcp_cef.yaml`: SQS-based agent streaming Cloud WAAP logs to a TCP destination formatted as CEF, suitable for SIEM receivers.
 - `sqs_tls_json_unknown.yaml`: SQS agent that enables unknown log processing and forwards normalized JSON over mutual TLS.
 - `sftp_tls_json.yaml`: Embedded SFTP drop-zone configuration that archives completed uploads and forwards JSON output over mutual TLS.
+- `sftp_splunk_hec.yaml`: SFTP drop-zone authenticating clients via SSH public keys while forwarding to Splunk HEC.
+- `sftp_splunk_hec_static.yaml`: SFTP drop-zone using static username/password credentials for clients, also forwarding to Splunk HEC.
+- `sftp_splunk_hec_http.yaml`: Same static-credential SFTP drop-zone, but sending events over plain HTTP for lab environments without TLS.
 
 Each file contains only the fields required for the scenario so you can copy-paste and adapt without trimming extraneous options.
 

@@ -158,6 +158,10 @@ class Config:
             if 'log_file' not in self.config['general'] or not self.config['general']['log_file']:
                 self.config['general']['log_file'] = default_log_file
 
+            # Set default logging level if missing
+            if 'logging_levels' not in self.config['general'] or not self.config['general']['logging_levels']:
+                self.config['general']['logging_levels'] = 'INFO'
+
             if self.config['output']['type'] == "udp":
                 self.config['output']['batch'] = False
 

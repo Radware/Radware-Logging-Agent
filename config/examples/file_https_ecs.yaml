@@ -1,3 +1,9 @@
+general:
+  log_file: "/var/log/rla/agent.log"
+  output_directory: "/var/spool/rla/tmp"
+  log_directory: "/var/log/rla"
+  logging_levels: "INFO"
+
 agents:
   - name: "file-ecs"
     type: "file"

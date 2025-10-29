@@ -5,7 +5,7 @@ general:
   logging_levels: "INFO"
 
 agents:
-  - name: "sftp-drop-zone"
+  - name: "sftp-splunk-hec"
     type: "sftp"
     product: "cloud_waap"
     sftp_settings:
@@ -14,18 +14,18 @@ agents:
         port: 2222
       host_keys:
         - "/etc/rla/ssh_host_ed25519_key"
-      drop_directory: "/var/spool/rla/sftp/drop"
-      polling_interval_seconds: 2
+      drop_directory: "/var/spool/rla/sftp/incoming"
+      polling_interval_seconds: 5
       completion_strategy:
         mode: "archive"
         archive_directory: "/var/spool/rla/sftp/archive"
       credential_policy:
         mode: "public_key"
         users:
-          - username: "partner"
-            home_directory: "/var/spool/rla/sftp/drop/partner"
+          - username: "splunk-partner"
+            home_directory: "/var/spool/rla/sftp/incoming/splunk-partner"
             authorized_keys:
-              - "/etc/rla/partners/partner.pub"
+              - "/etc/rla/partners/splunk-partner.pub"
     logs:
       Access: true
       WAF: true
@@ -37,18 +37,18 @@ agents:
 
 output:
   output_format: "json"
-  type: "tls"
-  destination: "collector.example.com:6514"
+  type: "https"
+  destination: "https://splunk.example.com:8088/services/collector"
   batch: true
-  compatibility_mode: "none"
+  compatibility_mode: "Splunk HEC"
 
-tls:
+https:
   verify: true
-  ca_cert: "/etc/rla/tls/ca.pem"
-  client_cert: "/etc/rla/tls/client.pem"
-  client_key: "/etc/rla/tls/client.key"
+  authentication:
+    auth_type: "bearer"
+    token: "CHANGE_ME_SPLUNK_HEC_TOKEN"
 
 formats:
   json:
-    time_format: "ISO8601"
+    time_format: "epoch_ms_str"
     unify_fields: true
