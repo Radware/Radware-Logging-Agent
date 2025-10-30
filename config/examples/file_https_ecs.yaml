@@ -25,7 +25,7 @@ agents:
 output:
   output_format: "json"
   type: "https"
-  destination: "https://ecs-endpoint.example.com/rla"
+  destination: "ecs-endpoint.example.com/rla"
   batch: true
   compatibility_mode: "ECS"
 

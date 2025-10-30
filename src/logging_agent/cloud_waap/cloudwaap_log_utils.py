@@ -243,10 +243,16 @@ class CloudWAAPProcessor:
             result = "Unknown"
 
             # Split the key into parts
-            parts = key.split("/")
+            parts = key.split("/") if isinstance(key, str) else []
 
-            if parts and log_type == "Bot":
-                result = parts[-3]
+            if log_type == "Bot":
+                if len(parts) >= 3:
+                    result = parts[-3]
+                else:
+                    logger.debug(
+                        "Unable to derive application id from key '%s' for Bot log – "
+                        "expected at least three path segments.", key
+                    )
             else:
                 # For other types of logs, implement the logic as needed
                 pass

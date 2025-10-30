@@ -26,15 +26,14 @@ agents:
 output:
   output_format: "json"
   type: "https"
-  destination: "https://splunk.example.com:8088/services/collector"
+  destination: "splunk.example.com:8088/services/collector"
   batch: true
   compatibility_mode: "Splunk HEC"
 
 https:
   verify: true
-  authentication:
-    auth_type: "bearer"
-    token: "CHANGE_ME_SPLUNK_HEC_TOKEN"
+  custom_headers:
+    Authorization: "Splunk CHANGE_ME_SPLUNK_HEC_TOKEN"
 
 formats:
   json:
