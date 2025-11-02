@@ -25,13 +25,12 @@ agents:
 
 output:
   output_format: "json"
-  type: "https"
+  type: "http"
   destination: "splunk.example.com:8088/services/collector"
   batch: true
   compatibility_mode: "Splunk HEC"
 
-https:
-  verify: true
+http:
   custom_headers:
     Authorization: "Splunk CHANGE_ME_SPLUNK_HEC_TOKEN"
 

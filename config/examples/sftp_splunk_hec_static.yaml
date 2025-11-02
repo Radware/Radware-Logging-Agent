@@ -46,7 +46,9 @@ https:
   custom_headers:
     Authorization: "Splunk CHANGE_ME_SPLUNK_HEC_TOKEN"
 
+
 formats:
   json:
     time_format: "epoch_ms_str"
     unify_fields: true
+
